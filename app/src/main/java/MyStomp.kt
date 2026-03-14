@@ -17,42 +17,47 @@ import org.json.JSONObject
 private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/websocket-example-broker"
 
 class MyStomp(val callbacks: Callbacks) {
-
-    private lateinit var topicFlow: Flow<String>
-    private lateinit var collector: Job
-
-    private lateinit var jsonFlow: Flow<String>
-    private lateinit var jsonCollector: Job
+    private var topicFlow: Flow<String>? = null
+    private var collector: Job? = null
+    private var jsonFlow: Flow<String>? = null
+    private var jsonCollector: Job? = null
 
     private lateinit var client: StompClient
-    private lateinit var session: StompSession
+    private var session: StompSession? = null
 
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO)
 
     fun connect() {
         client = StompClient(OkHttpWebSocketClient()) // other config can be passed in here
         scope.launch {
-            session = client.connect(WEBSOCKET_URI)
-            topicFlow = session.subscribeText("/topic/hello-response")
-            //connect to topic
-            collector = scope.launch {
-                topicFlow.collect { msg ->
-                    //todo logic
-                    callback(msg)
-                }
-            }
+            try {
+                val activeSession = client.connect(WEBSOCKET_URI)
+                session = activeSession
 
-            //connect to topic
-            jsonFlow = session.subscribeText("/topic/rcv-object")
-            jsonCollector = scope.launch {
-                jsonFlow.collect { msg ->
-                    val o = JSONObject(msg)
-                    callback(o.get("text").toString())
+                // connect to topic
+                topicFlow = activeSession.subscribeText("/topic/hello-response")
+                collector = scope.launch {
+                    topicFlow?.collect { msg ->
+                        // TODO logic
+                        callback(msg)
+                    }
                 }
+
+                // connect to JSON topic
+                jsonFlow = activeSession.subscribeText("/topic/rcv-object")
+                jsonCollector = scope.launch {
+                    jsonFlow?.collect { msg ->
+                        val o = JSONObject(msg)
+                        callback(o.get("text").toString())
+                    }
+                }
+                callback("connected")
+
+            } catch (e: Exception) {
+                Log.e("MyStomp", "Connection failed", e)
+                callback("Connection error")
             }
-            callback("connected")
         }
-
     }
 
     private fun callback(msg: String) {
@@ -63,8 +68,17 @@ class MyStomp(val callbacks: Callbacks) {
 
     fun sendHello() {
         scope.launch {
-            Log.e("tag", "connecting to topic")
-            session.sendText("/app/hello", "message from client")
+            try {
+                session?.let {
+                    Log.e("tag", "connecting to topic")
+                    it.sendText("/app/hello", "message from client")
+                } ?: run {
+                    Log.e("MyStomp", "Cannot send: Session is null")
+                    callback("Error: Not connected")
+                }
+            } catch (e: Exception) {
+                Log.e("MyStomp", "Send failed", e)
+            }
         }
     }
 
@@ -75,7 +89,11 @@ class MyStomp(val callbacks: Callbacks) {
         val o = json.toString()
 
         scope.launch {
-            session.sendText("/app/object", o)
+            try {
+                session?.sendText("/app/object", o) ?: callback("Error: Not connected")
+            } catch (e: Exception) {
+                Log.e("MyStomp", "Send JSON failed", e)
+            }
         }
     }
 }
