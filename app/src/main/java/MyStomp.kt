@@ -14,7 +14,7 @@ import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
 import org.json.JSONObject
 
-private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/websocket-example-broker";
+private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/websocket-example-broker"
 
 class MyStomp(val callbacks: Callbacks) {
 
@@ -28,8 +28,8 @@ class MyStomp(val callbacks: Callbacks) {
     private lateinit var session: StompSession
 
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO)
-    fun connect() {
 
+    fun connect() {
         client = StompClient(OkHttpWebSocketClient()) // other config can be passed in here
         scope.launch {
             session = client.connect(WEBSOCKET_URI)
@@ -69,13 +69,13 @@ class MyStomp(val callbacks: Callbacks) {
     }
 
     fun sendJson() {
-        var json = JSONObject();
+        val json = JSONObject()
         json.put("from", "client")
         json.put("text", "from client")
-        var o = json.toString()
+        val o = json.toString()
 
         scope.launch {
-            session.sendText("/app/object", o);
+            session.sendText("/app/object", o)
         }
     }
 }
