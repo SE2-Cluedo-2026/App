@@ -14,7 +14,7 @@ import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
 import org.json.JSONObject
 
-private val WEBSOCKET_URI = "ws://10.0.2.2:8080/websocket-example-broker";
+private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/websocket-example-broker";
 
 class MyStomp(val callbacks: Callbacks) {
 
@@ -46,7 +46,7 @@ class MyStomp(val callbacks: Callbacks) {
             jsonFlow = session.subscribeText("/topic/rcv-object")
             jsonCollector = scope.launch {
                 jsonFlow.collect { msg ->
-                    var o = JSONObject(msg)
+                    val o = JSONObject(msg)
                     callback(o.get("text").toString())
                 }
             }
@@ -62,10 +62,8 @@ class MyStomp(val callbacks: Callbacks) {
     }
 
     fun sendHello() {
-
         scope.launch {
             Log.e("tag", "connecting to topic")
-
             session.sendText("/app/hello", "message from client")
         }
     }
@@ -79,7 +77,5 @@ class MyStomp(val callbacks: Callbacks) {
         scope.launch {
             session.sendText("/app/object", o);
         }
-
     }
-
 }
