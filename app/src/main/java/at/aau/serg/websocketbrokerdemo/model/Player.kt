@@ -5,6 +5,7 @@ data class Player(
     val name: String,
     var ready: Boolean = false,
     /*
+
     Todo
      */
 )
