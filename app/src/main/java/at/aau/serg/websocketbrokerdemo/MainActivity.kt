@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity(), Callbacks {
 
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.fragment_fullscreen)
+        setContentView(R.layout.cluedo_fragment_fullscreen)
 
         findViewById<Button>(R.id.connectbtn).setOnClickListener { myStomp.connect() }
         findViewById<Button>(R.id.hellobtn).setOnClickListener { myStomp.sendHello() }
