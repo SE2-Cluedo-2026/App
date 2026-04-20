@@ -2,12 +2,13 @@ package at.aau.serg.websocketbrokerdemo
 
 import MyStomp
 import android.os.Bundle
-import android.widget.Button
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import com.example.myapplication.R
-
+import android.widget.Button;
+import android.widget.Toast;
+import android.content.Intent
 class MainActivity : ComponentActivity(), Callbacks {
     lateinit var myStomp: MyStomp
     lateinit var response: TextView
