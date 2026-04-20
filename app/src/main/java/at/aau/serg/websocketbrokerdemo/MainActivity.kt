@@ -18,10 +18,25 @@ class MainActivity : ComponentActivity(), Callbacks {
         enableEdgeToEdge()
         setContentView(R.layout.cluedo_fragment_fullscreen)
 
-        findViewById<Button>(R.id.connectbtn).setOnClickListener { myStomp.connect() }
-        findViewById<Button>(R.id.hellobtn).setOnClickListener { myStomp.sendHello() }
-        findViewById<Button>(R.id.jsonbtn).setOnClickListener { myStomp.sendJson() }
-        response = findViewById(R.id.response_view)
+        //  findViewById<Button>(R.id.connectbtn).setOnClickListener { myStomp.connect() }
+        //findViewById<Button>(R.id.hellobtn).setOnClickListener { myStomp.sendHello() }
+        //findViewById<Button>(R.id.jsonbtn).setOnClickListener { myStomp.sendJson() }
+        //response = findViewById(R.id.response_view)
+        val btnLearn = findViewById<Button>(R.id.btnLearn)
+
+        btnLearn.setOnClickListener {
+            val intent = Intent(this, LearnActivity::class.java)
+            startActivity(intent)
+        }
+
+
+        val btnStart = findViewById<Button>(R.id.btnStart)
+        btnStart.setOnClickListener {
+            val intent = Intent(this, LobbyActivity::class.java)
+            startActivity(intent)
+        }
+
+
     }
 
     override fun onResponse(res: String) {
