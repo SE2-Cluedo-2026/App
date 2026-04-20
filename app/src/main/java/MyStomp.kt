@@ -58,6 +58,13 @@ class MyStomp(val callbacks: Callbacks) {
                 callback("Connection error")
             }
         }
+
+        val lobbyFlow = activeSession.subscribeText("/topic/lobby-response")
+        scope.launch {
+            lobbyFlow.collect { msg ->
+                callback(msg)
+            }
+        }
     }
 
     private fun callback(msg: String) {
@@ -93,6 +100,32 @@ class MyStomp(val callbacks: Callbacks) {
                 session?.sendText("/app/object", o) ?: callback("Error: Not connected")
             } catch (e: Exception) {
                 Log.e("MyStomp", "Send JSON failed", e)
+            }
+        }
+    }
+
+    fun getAvailablePlayers() {
+        scope.launch {
+            try {
+                session?.sendText("/app/available-characters", "")
+                    ?: callback("Error: Not connected")
+            } catch (e: Exception) {
+                Log.e("MyStomp", "Getting players failed", e)
+            }
+        }
+    }
+
+    fun joinLobby(playerName: String, characterType: String) {
+        val json = JSONObject()
+        json.put("playerName", playerName)
+        json.put("characterType", characterType)
+
+        scope.launch {
+            try {
+                session?.sendText("/app/join-lobby", json.toString())
+                    ?: callback("Error: Not connected")
+            } catch (e: Exception) {
+                Log.e("MyStomp", "Joining lobby failed", e)
             }
         }
     }

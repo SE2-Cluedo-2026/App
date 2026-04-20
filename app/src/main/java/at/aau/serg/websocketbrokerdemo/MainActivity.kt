@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
+import at.aau.serg.websocketbrokerdemo.network.lobby.LobbyListener
 import com.example.myapplication.R
 import android.widget.Button;
 import android.widget.Toast;
@@ -38,12 +39,25 @@ class MainActivity : ComponentActivity(), Callbacks {
         }
 
 
+        findViewById<Button>(R.id.connectbtn).setOnClickListener { myStomp.connect() }
+        findViewById<Button>(R.id.hellobtn).setOnClickListener { myStomp.sendHello() }
+        findViewById<Button>(R.id.jsonbtn).setOnClickListener { myStomp.sendJson() }
+        findViewById<Button>(R.id.joinlobbybtn).setOnClickListener {
+            myStomp.joinLobby("Test", "Test")
+        }
+        response = findViewById(R.id.response_view)
     }
 
     override fun onResponse(res: String) {
         response.text = res
     }
 
+    override fun onJoinSuccess(message: String) {
+        response.text = message
+    }
 
+    override fun onPlayersReceived(players: List<String>) {
+        response.text = players.joinToString(", ")
+    }
 }
 
