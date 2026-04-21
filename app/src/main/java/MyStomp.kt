@@ -27,11 +27,13 @@ class MyStomp(val callbacks: Callbacks) {
 
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO)
 
+    private lateinit var activeSession: StompSession
+
     fun connect() {
         client = StompClient(OkHttpWebSocketClient()) // other config can be passed in here
         scope.launch {
             try {
-                val activeSession = client.connect(WEBSOCKET_URI)
+                activeSession = client.connect(WEBSOCKET_URI)
                 session = activeSession
 
                 // connect to topic
@@ -51,6 +53,13 @@ class MyStomp(val callbacks: Callbacks) {
                         callback(o.get("text").toString())
                     }
                 }
+
+                val lobbyFlow = activeSession.subscribeText("/topic/lobby-response")
+                scope.launch {
+                    lobbyFlow.collect { msg ->
+                        callback(msg)
+                    }
+                }
                 callback("connected")
 
             } catch (e: Exception) {
@@ -59,12 +68,7 @@ class MyStomp(val callbacks: Callbacks) {
             }
         }
 
-        val lobbyFlow = activeSession.subscribeText("/topic/lobby-response")
-        scope.launch {
-            lobbyFlow.collect { msg ->
-                callback(msg)
-            }
-        }
+
     }
 
     private fun callback(msg: String) {

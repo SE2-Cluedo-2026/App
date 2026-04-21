@@ -11,7 +11,7 @@ class LobbyActivity : ComponentActivity() {
 
         setContentView(R.layout.activity_lobby)
 
-        val btnLeave = findViewById<Button>(R.id.btnLeave)
+        val btnLeave = findViewById<Button>(R.id.btnleave)
 
         btnLeave.setOnClickListener {
             finish()
