@@ -28,4 +28,4 @@ object CardRepository {
         Card("AX", R.drawable.cax),
         Card("KNIFE", R.drawable.cknife),
         Card("SHOTGUN", R.drawable.cshotgun)
-    )
+    )}
