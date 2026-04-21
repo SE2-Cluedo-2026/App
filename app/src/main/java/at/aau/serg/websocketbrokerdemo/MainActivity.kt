@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity(), Callbacks {
         response.text = res
     }
 
-    fun onJoinSuccess(message: String) {
+     fun onJoinSuccess(message: String) {
         response.text = message
     }
 
