@@ -10,20 +10,33 @@ import com.example.myapplication.R
 import android.widget.Button;
 import android.widget.Toast;
 import android.content.Intent
+import android.util.Log
+import at.aau.serg.websocketbrokerdemo.model.ClientState
+import at.aau.serg.websocketbrokerdemo.network.lobby.LobbyHandler
 class MainActivity : ComponentActivity(), Callbacks {
     lateinit var myStomp: MyStomp
     lateinit var response: TextView
+
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         myStomp = MyStomp(this)
 
         super.onCreate(savedInstanceState)
+        // ID wird hier einmalig erstellt und gespeichert
+        val playerId = UserPreferences.getOrCreatePlayerId(this)
+        ClientState.playerId = playerId
+
         enableEdgeToEdge()
+
+        LobbyHandler.onLobbyJoined = {
+            runOnUiThread {
+                startActivity(Intent(this, LobbyActivity::class.java))
+            }
+        }
+
         setContentView(R.layout.cluedo_fragment_fullscreen)
 
-        //  findViewById<Button>(R.id.connectbtn).setOnClickListener { myStomp.connect() }
-        //findViewById<Button>(R.id.hellobtn).setOnClickListener { myStomp.sendHello() }
-        //findViewById<Button>(R.id.jsonbtn).setOnClickListener { myStomp.sendJson() }
-        //response = findViewById(R.id.response_view)
         val btnLearn = findViewById<Button>(R.id.btnLearn)
 
         btnLearn.setOnClickListener {
@@ -34,8 +47,7 @@ class MainActivity : ComponentActivity(), Callbacks {
 
         val btnStart = findViewById<Button>(R.id.btnStart)
         btnStart.setOnClickListener {
-            val intent = Intent(this, LobbyActivity::class.java)
-            startActivity(intent)
+            myStomp.connect()
         }
 
 
@@ -49,10 +61,16 @@ class MainActivity : ComponentActivity(), Callbacks {
     */}
 
     override fun onResponse(res: String) {
-        response.text = res
+        // response.text = res
+        Log.d("MainActivity", "Response: $res")
     }
 
-     fun onJoinSuccess(message: String) {
+    override fun onConnected() {
+        val intent = Intent(this, LobbyActivity::class.java)
+        startActivity(intent)
+    }
+
+    fun onJoinSuccess(message: String) {
         response.text = message
     }
 
@@ -60,4 +78,3 @@ class MainActivity : ComponentActivity(), Callbacks {
         response.text = players.joinToString(", ")
     }
 }
-
