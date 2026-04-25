@@ -2,6 +2,11 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import at.aau.serg.websocketbrokerdemo.Callbacks
+import at.aau.serg.websocketbrokerdemo.messaging.dtos.LobbyMessageType
+import at.aau.serg.websocketbrokerdemo.messaging.dtos.OutgoingLobbyMessageType
+import at.aau.serg.websocketbrokerdemo.model.ClientState
+import at.aau.serg.websocketbrokerdemo.network.game.GameHandler
+import at.aau.serg.websocketbrokerdemo.network.lobby.LobbyHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -17,10 +22,10 @@ import org.json.JSONObject
 private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/websocket-example-broker"
 
 class MyStomp(val callbacks: Callbacks) {
-    private var topicFlow: Flow<String>? = null
-    private var collector: Job? = null
-    private var jsonFlow: Flow<String>? = null
-    private var jsonCollector: Job? = null
+    private var lobbyFlow: Flow<String>? = null
+    private var lobbyCollector: Job? = null
+    private var gameFlow: Flow<String>? = null
+    private var gameCollector: Job? = null
 
     private lateinit var client: StompClient
     private var session: StompSession? = null
@@ -29,6 +34,14 @@ class MyStomp(val callbacks: Callbacks) {
 
     private lateinit var activeSession: StompSession
 
+    companion object {
+        lateinit var instance: MyStomp
+    }
+
+    init {
+        instance = this
+    }
+
     fun connect() {
         client = StompClient(OkHttpWebSocketClient()) // other config can be passed in here
         scope.launch {
@@ -36,31 +49,34 @@ class MyStomp(val callbacks: Callbacks) {
                 activeSession = client.connect(WEBSOCKET_URI)
                 session = activeSession
 
-                // connect to topic
-                topicFlow = activeSession.subscribeText("/topic/hello-response")
-                collector = scope.launch {
-                    topicFlow?.collect { msg ->
-                        // TODO logic
-                        callback(msg)
+                // connect to topic lobby-response
+                lobbyFlow = activeSession.subscribeText("/topic/lobby-response")
+                lobbyCollector = scope.launch {
+                    lobbyFlow?.collect { msg ->
+                        // For Debugging
+                        Log.d("MyStomp", "Received lobby-response: $msg")
+                        LobbyHandler.handle(msg)
                     }
                 }
 
-                // connect to JSON topic
-                jsonFlow = activeSession.subscribeText("/topic/rcv-object")
-                jsonCollector = scope.launch {
-                    jsonFlow?.collect { msg ->
-                        val o = JSONObject(msg)
-                        callback(o.get("text").toString())
+                // connect to topic game-response
+                gameFlow = activeSession.subscribeText("/topic/game-response")
+                gameCollector = scope.launch {
+                    gameFlow?.collect { msg ->
+                        // For Debugging
+                        Log.d("MyStomp", "Received game-response: $msg")
+                        GameHandler.handle(msg)
                     }
                 }
 
-                val lobbyFlow = activeSession.subscribeText("/topic/lobby-response")
-                scope.launch {
-                    lobbyFlow.collect { msg ->
-                        callback(msg)
-                    }
-                }
                 callback("connected")
+                val payload = JSONObject()
+                payload.put("playerKey", ClientState.playerId)
+
+                val json = JSONObject()
+                json.put("type", OutgoingLobbyMessageType.JOIN_LOBBY.toString())
+                json.put("payload", payload)
+                activeSession.sendText("/app/lobby", json.toString())
 
             } catch (e: Exception) {
                 Log.e("MyStomp", "Connection failed", e)
@@ -77,60 +93,23 @@ class MyStomp(val callbacks: Callbacks) {
         }
     }
 
-    fun sendHello() {
-        scope.launch {
-            try {
-                session?.let {
-                    Log.e("tag", "connecting to topic")
-                    it.sendText("/app/hello", "message from client")
-                } ?: run {
-                    Log.e("MyStomp", "Cannot send: Session is null")
-                    callback("Error: Not connected")
-                }
-            } catch (e: Exception) {
-                Log.e("MyStomp", "Send failed", e)
-            }
-        }
-    }
 
-    fun sendJson() {
+    fun leaveLobby() {
+        val payload = JSONObject()
+        payload.put("playerId", ClientState.playerId)
+
         val json = JSONObject()
-        json.put("from", "client")
-        json.put("text", "from client")
-        val o = json.toString()
+        json.put("type", OutgoingLobbyMessageType.LEAVE_LOBBY.toString())
+        json.put("payload", payload)
 
         scope.launch {
             try {
-                session?.sendText("/app/object", o) ?: callback("Error: Not connected")
-            } catch (e: Exception) {
-                Log.e("MyStomp", "Send JSON failed", e)
-            }
-        }
-    }
-
-    fun getAvailablePlayers() {
-        scope.launch {
-            try {
-                session?.sendText("/app/available-characters", "")
+                session?.sendText("/app/lobby", json.toString())
                     ?: callback("Error: Not connected")
             } catch (e: Exception) {
-                Log.e("MyStomp", "Getting players failed", e)
+                Log.e("MyStomp", "Leaving lobby failed", e)
             }
         }
     }
 
-    fun joinLobby(playerName: String, characterType: String) {
-        val json = JSONObject()
-        json.put("playerName", playerName)
-        json.put("characterType", characterType)
-
-        scope.launch {
-            try {
-                session?.sendText("/app/join-lobby", json.toString())
-                    ?: callback("Error: Not connected")
-            } catch (e: Exception) {
-                Log.e("MyStomp", "Joining lobby failed", e)
-            }
-        }
-    }
 }
