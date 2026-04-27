@@ -28,6 +28,7 @@
         </activity>
         <activity android:name="at.aau.serg.websocketbrokerdemo.LearnActivity" />
         <activity android:name="at.aau.serg.websocketbrokerdemo.LobbyActivity" />
+        <activity android:name="at.aau.serg.websocketbrokerdemo.GameActivity" />
     </application>
 
 </manifest>
