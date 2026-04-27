@@ -48,9 +48,11 @@ class MainActivity : ComponentActivity(), Callbacks {
         val btnStart = findViewById<Button>(R.id.btnStart)
         btnStart.setOnClickListener {
             myStomp.connect()
+            //TEST: ACHTUNG NUR ZUM TESTEN!!!!
+            //startActivity(Intent(this, LobbyActivity::class.java))
         }
 
-
+        
         /*findViewById<Button>(R.id.connectbtn).setOnClickListener { myStomp.connect() }
         findViewById<Button>(R.id.hellobtn).setOnClickListener { myStomp.sendHello() }
         findViewById<Button>(R.id.jsonbtn).setOnClickListener { myStomp.sendJson() }
