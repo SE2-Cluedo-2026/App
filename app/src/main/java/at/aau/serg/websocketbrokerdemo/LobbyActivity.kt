@@ -1,6 +1,7 @@
 package at.aau.serg.websocketbrokerdemo
 
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.widget.*
 import androidx.activity.ComponentActivity
@@ -20,11 +21,12 @@ class LobbyActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_lobby)
 
-        val btnLeave       = findViewById<Button>(R.id.btnleave)
+        val btnLeave       = findViewById<Button>(R.id.btnLeave)
         val btnReady       = findViewById<Button>(R.id.btnReady)
         val btnPrev        = findViewById<ImageButton>(R.id.btnPrev)
         val btnNext        = findViewById<ImageButton>(R.id.btnNext)
         val imgMyCharacter = findViewById<ImageView>(R.id.imgMyCharacter)
+        val btnStartGame   = findViewById<Button>(R.id.btnStartGame)
 
         val otherPlayerViews = listOf(
             findViewById<ImageView>(R.id.imgOtherPlayerCharacter2),
@@ -58,6 +60,10 @@ class LobbyActivity : ComponentActivity() {
             btnNext.isEnabled = false
             btnReady.isEnabled = false
             // TODO: Ready-Nachricht an Server schicken
+        }
+
+        btnStartGame.setOnClickListener {
+            startActivity(Intent(this, GameActivity::class.java))
         }
 
         btnLeave.setOnClickListener {
