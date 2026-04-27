@@ -131,5 +131,18 @@ class MyStomp(val callbacks: Callbacks) {
         }
         }
     }
+    fun startGame() {
+        val json = JSONObject()
+        json.put("type", "START_GAME")
+        Log.d("MyStomp", "Sending START_GAME: $json")
 
+        scope.launch {
+            try {
+                session?.sendText("/app/game", json.toString())
+                    ?: callback("Error: Not connected")
+            } catch (e: Exception) {
+                Log.e("MyStomp", "START_GAME failed", e)
+            }
+        }
+    }
 }
