@@ -18,6 +18,7 @@ import org.hildan.krossbow.stomp.sendText
 import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
 import org.json.JSONObject
+import java.util.logging.Logger
 
 private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/websocket-example-broker"
 
@@ -108,6 +109,59 @@ class MyStomp(val callbacks: Callbacks) {
                     ?: callback("Error: Not connected")
             } catch (e: Exception) {
                 Log.e("MyStomp", "Leaving lobby failed", e)
+            }
+        }
+    }
+    fun joinLobby() {
+        val payload = JSONObject()
+        payload.put("playerId", ClientState.playerId)
+
+        val json = JSONObject()
+        json.put("type", OutgoingLobbyMessageType.JOIN_LOBBY.toString())
+        json.put("payload", payload)
+
+        Log.d("MyStomp", "JOIN_LOBBY payload: $payload")
+        Log.d("MyStomp", "JOIN_LOBBY full message: $json")
+        scope.launch {
+            try{
+            session?.sendText("/app/lobby", json.toString())
+                ?: callback("Error: Not connected")
+        } catch (e: Exception) {
+            Log.e("MyStomp", "Join lobby failed", e)
+        }
+        }
+    }
+    fun startGame() {
+        val json = JSONObject()
+        json.put("type", "START_GAME")
+        Log.d("MyStomp", "Sending START_GAME: $json")
+
+        scope.launch {
+            try {
+                session?.sendText("/app/game", json.toString())
+                    ?: callback("Error: Not connected")
+            } catch (e: Exception) {
+                Log.e("MyStomp", "START_GAME failed", e)
+            }
+        }
+    }
+    fun setReady(characterType: String, isReady: Boolean) {
+        val json = JSONObject()
+        json.put("type", "SET_CHARACTER_TYPE_AND_STATUS_READY")
+
+        val payload = JSONObject()
+        payload.put("playerId", ClientState.playerId)
+        payload.put("characterType", characterType)
+        payload.put("ready", isReady)
+
+        json.put("payload", payload)
+
+        scope.launch {
+            try {
+                session?.sendText("/app/lobby", json.toString())
+                    ?: callback("Error: Not connected")
+            } catch (e: Exception) {
+                Log.e("MyStomp", "SET_READY failed", e)
             }
         }
     }
