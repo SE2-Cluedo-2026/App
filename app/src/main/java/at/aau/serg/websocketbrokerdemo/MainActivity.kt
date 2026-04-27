@@ -47,9 +47,9 @@ class MainActivity : ComponentActivity(), Callbacks {
 
         val btnStart = findViewById<Button>(R.id.btnStart)
         btnStart.setOnClickListener {
-            myStomp.connect()
+            //myStomp.connect()
             //TEST: ACHTUNG NUR ZUM TESTEN!!!!
-            //startActivity(Intent(this, LobbyActivity::class.java))
+            startActivity(Intent(this, LobbyActivity::class.java))
         }
 
         
