@@ -18,6 +18,7 @@ import org.hildan.krossbow.stomp.sendText
 import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
 import org.json.JSONObject
+import java.util.logging.Logger
 
 private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/websocket-example-broker"
 
@@ -109,6 +110,25 @@ class MyStomp(val callbacks: Callbacks) {
             } catch (e: Exception) {
                 Log.e("MyStomp", "Leaving lobby failed", e)
             }
+        }
+    }
+    fun joinLobby() {
+        val payload = JSONObject()
+        payload.put("playerId", ClientState.playerId)
+
+        val json = JSONObject()
+        json.put("type", OutgoingLobbyMessageType.JOIN_LOBBY.toString())
+        json.put("payload", payload)
+
+        Log.d("MyStomp", "JOIN_LOBBY payload: $payload")
+        Log.d("MyStomp", "JOIN_LOBBY full message: $json")
+        scope.launch {
+            try{
+            session?.sendText("/app/lobby", json.toString())
+                ?: callback("Error: Not connected")
+        } catch (e: Exception) {
+            Log.e("MyStomp", "Join lobby failed", e)
+        }
         }
     }
 
