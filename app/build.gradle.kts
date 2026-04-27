@@ -109,6 +109,17 @@ sonar {
             "sonar.coverage.jacoco.xmlReportPaths",
             "${project.projectDir}/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
         )
+        property(
+            "sonar.coverage.exclusions",
+            "**/Color.kt," +
+            "**/Theme.kt," +
+            "**/Type.kt," +
+            "**/MainActivity.kt," +
+            "**/LobbyActivity.kt," +
+            "**/GameActivity.kt," +
+            "**/Callbacks.kt,"
+
+        )
     }
 }
 
