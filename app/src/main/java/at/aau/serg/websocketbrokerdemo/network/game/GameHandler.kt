@@ -20,6 +20,8 @@ class GameHandler {
                 val type = GameMessageType.valueOf(json.getString("type"))
                 val payload = json.optJSONObject("payload")
 
+
+
                 when (type) {
                     GameMessageType.ROLL_DICE -> {
                         val value = payload?.getInt("value") ?: return
