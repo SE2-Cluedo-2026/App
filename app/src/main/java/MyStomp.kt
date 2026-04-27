@@ -145,4 +145,25 @@ class MyStomp(val callbacks: Callbacks) {
             }
         }
     }
+    fun setReady(characterType: String, isReady: Boolean) {
+        val json = JSONObject()
+        json.put("type", "SET_CHARACTER_TYPE_AND_STATUS_READY")
+
+        val payload = JSONObject()
+        payload.put("playerId", ClientState.playerId)
+        payload.put("characterType", characterType)
+        payload.put("ready", isReady)
+
+        json.put("payload", payload)
+
+        scope.launch {
+            try {
+                session?.sendText("/app/lobby", json.toString())
+                    ?: callback("Error: Not connected")
+            } catch (e: Exception) {
+                Log.e("MyStomp", "SET_READY failed", e)
+            }
+        }
+    }
+
 }
