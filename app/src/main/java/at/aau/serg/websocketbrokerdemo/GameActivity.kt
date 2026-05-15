@@ -470,11 +470,10 @@ class GameActivity : ComponentActivity() {
     }
 
     private fun updateChecklist() {
-        val checklistFrame = findViewById<ViewGroup>(R.id.checklistFrame) ?: return
-        checklistFrame.post {
+        checklistOverlay.post {
             GameUIHelper.buildChecklistOverlay(
                 this, checklistOverlay,
-                checklistFrame.width, checklistFrame.height
+                checklistOverlay.width, checklistOverlay.height
             )
         }
     }
