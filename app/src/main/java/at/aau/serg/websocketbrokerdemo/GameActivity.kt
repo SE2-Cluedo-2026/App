@@ -55,11 +55,11 @@ class GameActivity : ComponentActivity() {
         setupGameHandlers()
         initializePlayerPositions()
 
-        btnRollDice  = findViewById(R.id.btnRollDice)
+        btnRollDice = findViewById(R.id.btnRollDice)
         btnHiddenWay = findViewById(R.id.btnHiddenWay)
-        btnSuggest   = findViewById(R.id.btnSuggest)
-        btnAccuse    = findViewById(R.id.btnAccuse)
-        btnLeave     = findViewById(R.id.btnLeave)
+        btnSuggest = findViewById(R.id.btnSuggest)
+        btnAccuse = findViewById(R.id.btnAccuse)
+        btnLeave = findViewById(R.id.btnLeave)
 
         findViewById<Button>(R.id.btnRollDice).setOnClickListener { onRollDice() }
         findViewById<Button>(R.id.btnHiddenWay).setOnClickListener { onHiddenWay() }
@@ -126,19 +126,21 @@ class GameActivity : ComponentActivity() {
 
         val myId = ClientState.playerId
         val sortedPlayers = ClientState.players.sortedWith(compareBy {
-            if (it.playerId == myId) 0 else 1 })
+            if (it.playerId == myId) 0 else 1
+        })
 
         for (player in sortedPlayers) {
             val charType = player.character ?: continue
 
-            val itemView = layoutInflater.inflate(R.layout.player_panel_entry, characterPanel, false)
+            val itemView =
+                layoutInflater.inflate(R.layout.player_panel_entry, characterPanel, false)
 
             val imageResId = when (charType) {
-                "drred"       -> R.drawable.cdrred
-                "drblue"      -> R.drawable.cdrblue
-                "mrspink"     -> R.drawable.cmrspink
+                "drred" -> R.drawable.cdrred
+                "drblue" -> R.drawable.cdrblue
+                "mrspink" -> R.drawable.cmrspink
                 "mrslavender" -> R.drawable.cmrslavender
-                else          -> android.R.drawable.ic_menu_help
+                else -> android.R.drawable.ic_menu_help
             }
             itemView.findViewById<ImageView>(R.id.imgCharacter).setImageResource(imageResId)
 
@@ -155,13 +157,15 @@ class GameActivity : ComponentActivity() {
             characterPanel.addView(itemView)
         }
     }
+
     private fun initializePlayerPositions() {
         val players = ClientState.players
         players.forEach { player ->
             val charType = ClientState.playerCharacterMap[player.playerId] ?: player.character
             val startPos = charType?.let { BoardConfig.CHARACTER_START_POSITIONS[it] }
             if (startPos != null) {
-                ClientState.playerPositions[player.playerId] = "${startPos.first},${startPos.second}"
+                ClientState.playerPositions[player.playerId] =
+                    "${startPos.first},${startPos.second}"
             } else {
                 ClientState.playerPositions[player.playerId] = "6,4"
             }
@@ -177,7 +181,8 @@ class GameActivity : ComponentActivity() {
             val c = parts[0].trim().toIntOrNull() ?: 0
             val r = parts[1].trim().toIntOrNull() ?: 0
             if (!BoardConfig.isAdjacent(c, r, col, row)) {
-                Toast.makeText(this, getString(R.string.move_not_adjacent), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.move_not_adjacent), Toast.LENGTH_SHORT)
+                    .show()
                 return
             }
         }
@@ -261,7 +266,8 @@ class GameActivity : ComponentActivity() {
     private fun setupGameHandlers() {
         GameHandler.onRollDice = { value, newPosition ->
             runOnUiThread {
-                Toast.makeText(this, getString(R.string.dice_result, value), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.dice_result, value), Toast.LENGTH_SHORT)
+                    .show()
                 hiddenWayUsed = false
                 if (newPosition != null) {
                     updatePlayerDot(ClientState.playerId, newPosition)
@@ -314,7 +320,10 @@ class GameActivity : ComponentActivity() {
                 // Only show toast, do NOT trigger "your turn" UI for other players
                 val currentPlayer = ClientState.players.getOrNull(newIndex)
                 val msg = if (currentPlayer?.playerId == ClientState.playerId)
-                    getString(R.string.your_turn) else getString(R.string.turn_other, currentPlayer?.character ?: "Player ${newIndex + 1}")
+                    getString(R.string.your_turn) else getString(
+                    R.string.turn_other,
+                    currentPlayer?.character ?: "Player ${newIndex + 1}"
+                )
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
             }
         }
@@ -352,11 +361,19 @@ class GameActivity : ComponentActivity() {
                         if (matchingCards.isNotEmpty()) {
                             GameUIHelper.showResultCards(this, rootLayout, matchingCards)
                         } else {
-                            Toast.makeText(this, getString(R.string.no_matching_cards), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this,
+                                getString(R.string.no_matching_cards),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                         updateChecklist()
                     } else {
-                        Toast.makeText(this, getString(R.string.suggestion_made, "${suggesterID.take(8)}..."), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this,
+                            getString(R.string.suggestion_made, "${suggesterID.take(8)}..."),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             }
@@ -367,16 +384,28 @@ class GameActivity : ComponentActivity() {
                 // All players see the accusation cards
                 GameUIHelper.showResultCards(this, rootLayout, listOf(suspect, weapon, room), 3000)
                 if (correct) {
-                    val msg = if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(R.string.player_won, "${accuserID.take(8)}...")
+                    val msg =
+                        if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(
+                            R.string.player_won,
+                            "${accuserID.take(8)}..."
+                        )
                     android.os.Handler(mainLooper).postDelayed({
                         GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
                     }, 3500)
                 } else if (eliminated) {
                     // Only show elimination message, differentiate by playerId
                     if (accuserID == ClientState.playerId) {
-                        Toast.makeText(this, getString(R.string.wrong_accusation), Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            this,
+                            getString(R.string.wrong_accusation),
+                            Toast.LENGTH_LONG
+                        ).show()
                     } else {
-                        Toast.makeText(this, getString(R.string.player_eliminated, "${accuserID.take(8)}..."), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this,
+                            getString(R.string.player_eliminated, "${accuserID.take(8)}..."),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             }
@@ -384,14 +413,22 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onGameFinished = { winner ->
             runOnUiThread {
-                val msg = if (winner == ClientState.playerId) getString(R.string.you_won) else getString(R.string.player_won, "${winner.take(8)}...")
+                val msg =
+                    if (winner == ClientState.playerId) getString(R.string.you_won) else getString(
+                        R.string.player_won,
+                        "${winner.take(8)}..."
+                    )
                 GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
             }
         }
 
         GameHandler.onGameAborted = { reason ->
             runOnUiThread {
-                GameUIHelper.showGameEndOverlay(this, rootLayout, getString(R.string.game_over, reason))
+                GameUIHelper.showGameEndOverlay(
+                    this,
+                    rootLayout,
+                    getString(R.string.game_over, reason)
+                )
             }
         }
     }
@@ -420,12 +457,14 @@ class GameActivity : ComponentActivity() {
             val parts = position.split(",")
             val col = parts[0].trim().toIntOrNull() ?: 0
             val row = parts[1].trim().toIntOrNull() ?: 0
-            val dlp = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(dotSize, dotSize).apply {
-                startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                leftMargin = col * cellW + (cellW - dotSize) / 2
-                topMargin = row * cellH + (cellH - dotSize) / 2
-            }
+            val dlp =
+                androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(dotSize, dotSize)
+                    .apply {
+                        startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
+                        topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
+                        leftMargin = col * cellW + (cellW - dotSize) / 2
+                        topMargin = row * cellH + (cellH - dotSize) / 2
+                    }
             dot.layoutParams = dlp
             gridOverlay.addView(dot)
         } else {
@@ -442,12 +481,14 @@ class GameActivity : ComponentActivity() {
             val offsetX = (slotIndex % 2) * dotSize
             val offsetY = (slotIndex / 2) * dotSize
 
-            val dlp = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(dotSize, dotSize).apply {
-                startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                leftMargin = centerX + offsetX - dotSize / 2
-                topMargin = centerY + offsetY - dotSize / 2
-            }
+            val dlp =
+                androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(dotSize, dotSize)
+                    .apply {
+                        startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
+                        topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
+                        leftMargin = centerX + offsetX - dotSize / 2
+                        topMargin = centerY + offsetY - dotSize / 2
+                    }
             dot.layoutParams = dlp
             roomOverlay.addView(dot)
         }
@@ -479,36 +520,61 @@ class GameActivity : ComponentActivity() {
             view.visibility = if (pid == currentPid) View.VISIBLE else View.GONE
         }
     }
+
     private fun updateButtonStates() {
         val myTurn = isMyTurn() && !ClientState.isEliminated
-        val phase  = ClientState.currentPhase
-        val myPos  = ClientState.playerPositions[ClientState.playerId] ?: ""
+        val phase = ClientState.currentPhase
+        val myPos = ClientState.playerPositions[ClientState.playerId] ?: ""
         val inRoom = BoardConfig.ROOM_CENTERS_PERCENT.containsKey(myPos)
         val hasHiddenPassage = BoardConfig.HIDDEN_PASSAGES.containsKey(myPos)
 
-        setButtonActive(btnRollDice,  myTurn && phase == "WAITING_FOR_ROLL")
-        setButtonActive(btnHiddenWay, myTurn && hasHiddenPassage && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL"))
-        setButtonActive(btnSuggest,   myTurn && inRoom && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL"))
-        setButtonActive(btnAccuse,    myTurn && inRoom && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL"))
+        setButtonActive(btnRollDice, myTurn && phase == "WAITING_FOR_ROLL")
+        setButtonActive(
+            btnHiddenWay,
+            myTurn && hasHiddenPassage && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL")
+        )
+        setButtonActive(
+            btnSuggest,
+            myTurn && inRoom && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL")
+        )
+        setButtonActive(
+            btnAccuse,
+            myTurn && inRoom && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL")
+        )
         setButtonActive(btnLeave, true)
     }
 
     private fun setButtonActive(btn: Button, active: Boolean) {
-        btn.alpha       = if (active) 1.0f else 0.4f
+        btn.alpha = if (active) 1.0f else 0.4f
         btn.isClickable = active
     }
 
     private fun updateAllPlayerStatuses() {
         val players = ClientState.players
-        val currentPid = if (players.isNotEmpty() && ClientState.currentPlayerIndex < players.size)
-            players[ClientState.currentPlayerIndex].playerId else ""
+        val currentPid = players.getOrNull(ClientState.currentPlayerIndex)?.playerId ?: ""
+
         for (player in players) {
             val tv = playerStatusViews[player.playerId] ?: continue
-            tv.text = if (player.playerId == currentPid) {
-                val moves = ClientState.remainingMoves
-                if (moves > 0) getString(R.string.moves_left, moves)
-                else getString(R.string.in_room_status)
-            } else ""
+
+            tv.text = when {
+                ClientState.eliminatedPlayers.contains(player.playerId) ->
+                    getString(R.string.status_eliminated)
+
+                player.playerId == currentPid -> {
+                    val moves = ClientState.remainingMoves
+                    when (ClientState.currentPhase) {
+                        "WAITING_FOR_ROLL" -> getString(R.string.status_roll)
+                        "WAITING_FOR_MOVE" -> getString(R.string.status_moving, moves)
+                        "IN_ROOM" -> getString(R.string.status_in_room)
+                        "WAITING_FOR_SUGGESTION_RESPONSE" -> getString(R.string.status_suggestion)
+                        "WAITING_FOR_LIAR_DECISION" -> getString(R.string.status_liar)
+                        "TURN_ENDED" -> getString(R.string.status_waiting)
+                        else -> ""
+                    }
+                }
+
+                else -> getString(R.string.status_waiting)
+            }
         }
     }
 }
