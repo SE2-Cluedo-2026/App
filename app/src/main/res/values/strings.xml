@@ -35,4 +35,7 @@
     <string name="wrong_accusation">Wrong accusation! You are eliminated.</string>
     <string name="player_eliminated">Player %1$s was eliminated.</string>
     <string name="game_over">Game Over: %1$s</string>
+
+    <string name="moves_left">Moves: %1$d</string>
+    <string name="in_room_status">In Room</string>
 </resources>

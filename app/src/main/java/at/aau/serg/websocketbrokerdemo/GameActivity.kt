@@ -8,10 +8,10 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import com.example.myapplication.R
 import at.aau.serg.websocketbrokerdemo.model.BoardConfig
-import at.aau.serg.websocketbrokerdemo.model.CardRepository
 import at.aau.serg.websocketbrokerdemo.model.ClientState
 import at.aau.serg.websocketbrokerdemo.network.game.GameHandler
 
@@ -21,7 +21,7 @@ class GameActivity : ComponentActivity() {
     private lateinit var gridOverlay: ViewGroup
 
     private lateinit var checklistOverlay: ViewGroup
-    private lateinit var characterPanel: androidx.constraintlayout.widget.ConstraintLayout
+    private lateinit var characterPanel: android.widget.LinearLayout
 
     private lateinit var dialogOverlay: ViewGroup
 
@@ -31,9 +31,18 @@ class GameActivity : ComponentActivity() {
     private var hiddenWayUsed = false
     private var boardSetupDone = false
 
+    private lateinit var btnRollDice: Button
+    private lateinit var btnHiddenWay: Button
+    private lateinit var btnSuggest: Button
+    private lateinit var btnAccuse: Button
+    private lateinit var btnLeave: Button
+
+    private val playerStatusViews = mutableMapOf<String, TextView>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
 
         rootLayout = findViewById(R.id.rootGameLayout)
         boardImage = findViewById(R.id.imgBoard)
@@ -45,6 +54,12 @@ class GameActivity : ComponentActivity() {
 
         setupGameHandlers()
         initializePlayerPositions()
+
+        btnRollDice  = findViewById(R.id.btnRollDice)
+        btnHiddenWay = findViewById(R.id.btnHiddenWay)
+        btnSuggest   = findViewById(R.id.btnSuggest)
+        btnAccuse    = findViewById(R.id.btnAccuse)
+        btnLeave     = findViewById(R.id.btnLeave)
 
         findViewById<Button>(R.id.btnRollDice).setOnClickListener { onRollDice() }
         findViewById<Button>(R.id.btnHiddenWay).setOnClickListener { onHiddenWay() }
@@ -98,80 +113,48 @@ class GameActivity : ComponentActivity() {
         setupCharacterPanel(imgY, imgH)
         updateChecklist()
         updateCurrentPlayerHighlight()
+        updateButtonStates()
         placeAllPlayerDots()
     }
 
-
     private fun setupCharacterPanel(imgY: Int, imgH: Int) {
         characterPanel.removeAllViews()
+        characterHighlights.clear()
+        playerStatusViews.clear()
         characterPanel.setBackgroundColor(Color.argb(120, 0, 0, 0))
-
-        val panelLp = characterPanel.layoutParams as ViewGroup.MarginLayoutParams
-        panelLp.topMargin = imgY
-        panelLp.height = imgH
-        characterPanel.layoutParams = panelLp
         characterPanel.visibility = View.VISIBLE
 
-        val panelW = GameUIHelper.dpToPx(this, 56)
+        val myId = ClientState.playerId
+        val sortedPlayers = ClientState.players.sortedWith(compareBy {
+            if (it.playerId == myId) 0 else 1 })
 
-        val constraintSet = androidx.constraintlayout.widget.ConstraintSet()
-        constraintSet.clone(characterPanel)
-        var previousId = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-
-        for (player in ClientState.players) {
+        for (player in sortedPlayers) {
             val charType = player.character ?: continue
-            val wrapper = androidx.constraintlayout.widget.ConstraintLayout(this)
-            val wrapperId = View.generateViewId()
-            wrapper.id = wrapperId
 
-            val wlp = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(panelW, GameUIHelper.dpToPx(this, 80))
-            wlp.setMargins(0, GameUIHelper.dpToPx(this, 4), 0, GameUIHelper.dpToPx(this, 4))
-            wrapper.layoutParams = wlp
+            val itemView = layoutInflater.inflate(R.layout.player_panel_entry, characterPanel, false)
 
-            val card = CardRepository.cards.find { it.cardId == charType }
-            val img = ImageView(this)
-            img.layoutParams = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, 0).apply {
-                startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                endToEnd = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                bottomToBottom = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
+            val imageResId = when (charType) {
+                "drred"       -> R.drawable.cdrred
+                "drblue"      -> R.drawable.cdrblue
+                "mrspink"     -> R.drawable.cmrspink
+                "mrslavender" -> R.drawable.cmrslavender
+                else          -> android.R.drawable.ic_menu_help
             }
-            img.scaleType = ImageView.ScaleType.FIT_CENTER
-            img.setImageResource(card?.imageResId ?: android.R.drawable.ic_menu_help)
+            itemView.findViewById<ImageView>(R.id.imgCharacter).setImageResource(imageResId)
 
-            val highlight = View(this)
-            highlight.layoutParams = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, 0).apply {
-                startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                endToEnd = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                bottomToBottom = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-            }
-            highlight.visibility = View.GONE
+            val highlightView = itemView.findViewById<View>(R.id.viewActiveHighlight)
             val border = GradientDrawable()
-            border.setStroke(4, Color.YELLOW)
-            border.cornerRadius = 4f
+            border.setStroke(GameUIHelper.dpToPx(this, 3), Color.parseColor("#D12E7D"))
+            border.cornerRadius = GameUIHelper.dpToPx(this, 4).toFloat()
             border.setColor(Color.TRANSPARENT)
-            highlight.background = border
-            characterHighlights[player.playerId] = highlight
+            highlightView.background = border
+            highlightView.visibility = View.GONE
+            characterHighlights[player.playerId] = highlightView
 
-            wrapper.addView(img)
-            wrapper.addView(highlight)
-            characterPanel.addView(wrapper)
-
-            constraintSet.connect(wrapperId, androidx.constraintlayout.widget.ConstraintSet.START, androidx.constraintlayout.widget.ConstraintSet.PARENT_ID, androidx.constraintlayout.widget.ConstraintSet.START)
-            constraintSet.connect(wrapperId, androidx.constraintlayout.widget.ConstraintSet.END, androidx.constraintlayout.widget.ConstraintSet.PARENT_ID, androidx.constraintlayout.widget.ConstraintSet.END)
-
-            if (previousId == androidx.constraintlayout.widget.ConstraintSet.PARENT_ID) {
-                constraintSet.connect(wrapperId, androidx.constraintlayout.widget.ConstraintSet.TOP, androidx.constraintlayout.widget.ConstraintSet.PARENT_ID, androidx.constraintlayout.widget.ConstraintSet.TOP)
-            } else {
-                constraintSet.connect(wrapperId, androidx.constraintlayout.widget.ConstraintSet.TOP, previousId, androidx.constraintlayout.widget.ConstraintSet.BOTTOM)
-            }
-
-            previousId = wrapperId
+            playerStatusViews[player.playerId] = itemView.findViewById(R.id.tvStatus)
+            characterPanel.addView(itemView)
         }
-        constraintSet.applyTo(characterPanel)
     }
-
     private fun initializePlayerPositions() {
         val players = ClientState.players
         players.forEach { player ->
@@ -180,7 +163,6 @@ class GameActivity : ComponentActivity() {
             if (startPos != null) {
                 ClientState.playerPositions[player.playerId] = "${startPos.first},${startPos.second}"
             } else {
-                // Fallback to center if character is not mapped correctly
                 ClientState.playerPositions[player.playerId] = "6,4"
             }
         }
@@ -284,6 +266,8 @@ class GameActivity : ComponentActivity() {
                 if (newPosition != null) {
                     updatePlayerDot(ClientState.playerId, newPosition)
                 }
+                updateButtonStates()
+                updateAllPlayerStatuses()
             }
         }
 
@@ -313,6 +297,8 @@ class GameActivity : ComponentActivity() {
                         }
                     }
                 }
+                updateButtonStates()
+                updateAllPlayerStatuses()
             }
         }
 
@@ -322,6 +308,8 @@ class GameActivity : ComponentActivity() {
                 hiddenWayUsed = false
                 currentRoomId = null
                 updateCurrentPlayerHighlight()
+                updateButtonStates()
+                updateAllPlayerStatuses()
 
                 // Only show toast, do NOT trigger "your turn" UI for other players
                 val currentPlayer = ClientState.players.getOrNull(newIndex)
@@ -338,6 +326,8 @@ class GameActivity : ComponentActivity() {
                     currentRoomId = roomId
                 }
                 updatePlayerDot(playerId, roomId)
+                updateButtonStates()
+                updateAllPlayerStatuses()
             }
         }
 
@@ -349,6 +339,8 @@ class GameActivity : ComponentActivity() {
                     hiddenWayUsed = true
                 }
                 updatePlayerDot(playerId, targetRoom)
+                updateButtonStates()
+                updateAllPlayerStatuses()
             }
         }
 
@@ -485,6 +477,38 @@ class GameActivity : ComponentActivity() {
 
         characterHighlights.forEach { (pid, view) ->
             view.visibility = if (pid == currentPid) View.VISIBLE else View.GONE
+        }
+    }
+    private fun updateButtonStates() {
+        val myTurn = isMyTurn() && !ClientState.isEliminated
+        val phase  = ClientState.currentPhase
+        val myPos  = ClientState.playerPositions[ClientState.playerId] ?: ""
+        val inRoom = BoardConfig.ROOM_CENTERS_PERCENT.containsKey(myPos)
+        val hasHiddenPassage = BoardConfig.HIDDEN_PASSAGES.containsKey(myPos)
+
+        setButtonActive(btnRollDice,  myTurn && phase == "WAITING_FOR_ROLL")
+        setButtonActive(btnHiddenWay, myTurn && hasHiddenPassage && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL"))
+        setButtonActive(btnSuggest,   myTurn && inRoom && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL"))
+        setButtonActive(btnAccuse,    myTurn && inRoom && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL"))
+        setButtonActive(btnLeave, true)
+    }
+
+    private fun setButtonActive(btn: Button, active: Boolean) {
+        btn.alpha       = if (active) 1.0f else 0.4f
+        btn.isClickable = active
+    }
+
+    private fun updateAllPlayerStatuses() {
+        val players = ClientState.players
+        val currentPid = if (players.isNotEmpty() && ClientState.currentPlayerIndex < players.size)
+            players[ClientState.currentPlayerIndex].playerId else ""
+        for (player in players) {
+            val tv = playerStatusViews[player.playerId] ?: continue
+            tv.text = if (player.playerId == currentPid) {
+                val moves = ClientState.remainingMoves
+                if (moves > 0) getString(R.string.moves_left, moves)
+                else getString(R.string.in_room_status)
+            } else ""
         }
     }
 }
