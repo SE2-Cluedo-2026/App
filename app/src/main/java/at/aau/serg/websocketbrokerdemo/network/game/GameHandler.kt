@@ -22,7 +22,7 @@ class GameHandler {
                 val type = json.getString("type")
                 val payload = json.optJSONObject("payload")
 
-                val phase = payload?.optString("currentPhase", "") ?: ""
+                val phase = if (payload != null) payload.optString("currentPhase", "") else ""
                 if (phase.isNotEmpty()) {
                     ClientState.currentPhase = phase
                 }
@@ -30,7 +30,9 @@ class GameHandler {
 
                 when (type) {
                     GameMessageType.ROLL_DICE.name -> {
-                        val value = payload?.getInt("value") ?: return
+                        if (payload == null)
+                            return
+                        val value = payload.getInt("value")
                         ClientState.remainingMoves = value
 
                         var newPos: String? = null
@@ -43,7 +45,9 @@ class GameHandler {
                     }
 
                     GameMessageType.MOVE.name -> {
-                        val playerId = payload?.getString("playerId") ?: return
+                        if (payload == null)
+                            return
+                        val playerId = payload.getString("playerId")
                         val position = payload.getString("position")
                         val movesLeft = payload.optInt("movesLeft", 0)
                         ClientState.remainingMoves = movesLeft
@@ -52,28 +56,36 @@ class GameHandler {
                     }
 
                     GameMessageType.END_TURN.name -> {
-                        val currentPlayerIndex = payload?.getInt("currentPlayerIndex") ?: return
+                        if (payload == null)
+                            return
+                        val currentPlayerIndex = payload.getInt("currentPlayerIndex")
                         ClientState.currentPlayerIndex = currentPlayerIndex
                         ClientState.remainingMoves = 0
                         onEndTurn?.invoke(currentPlayerIndex)
                     }
 
                     GameMessageType.ENTER_ROOM.name -> {
-                        val playerId = payload?.getString("playerId") ?: return
+                        if (payload == null)
+                            return
+                        val playerId = payload.getString("playerId")
                         val roomId = payload.getString("roomId")
                         ClientState.playerPositions[playerId] = roomId
                         onEnterRoom?.invoke(playerId, roomId)
                     }
 
                     GameMessageType.TAKE_HIDDEN_WAY.name -> {
-                        val playerId = payload?.getString("playerId") ?: return
+                        if (payload == null)
+                            return
+                        val playerId = payload.getString("playerId")
                         val targetRoom = payload.getString("targetRoom")
                         ClientState.playerPositions[playerId] = targetRoom
                         onHiddenWay?.invoke(playerId, targetRoom)
                     }
 
                     GameMessageType.MAKE_ACCUSATION.name -> {
-                        val accuserID = payload?.getString("accuserID") ?: return
+                        if (payload == null)
+                            return
+                        val accuserID = payload.getString("accuserID")
                         val suspect = payload.getString("suspect")
                         val room = payload.getString("room")
                         val weapon = payload.getString("weapon")
@@ -90,7 +102,9 @@ class GameHandler {
                     }
 
                     GameMessageType.SUGGESTION_RESULT.name -> {
-                        val suggesterID = payload?.getString("suggesterID") ?: return
+                        if (payload == null)
+                            return
+                        val suggesterID = payload.getString("suggesterID")
                         val suspect = payload.getString("suspect")
                         val room = payload.getString("room")
                         val weapon = payload.getString("weapon")
@@ -112,12 +126,12 @@ class GameHandler {
                     }
 
                     GameMessageType.GAME_FINISHED.name -> {
-                        val winner = payload?.optString("winner", "") ?: ""
+                        val winner = if (payload != null) payload.optString("winner", "") else ""
                         onGameFinished?.invoke(winner)
                     }
 
                     GameMessageType.GAME_ABORTED.name -> {
-                        val reason = payload?.optString("reason", "Game aborted") ?: "Game aborted"
+                        val reason = if (payload != null) payload.optString("reason", "Game aborted") else "Game aborted"
                         onGameAborted?.invoke(reason)
                     }
 
