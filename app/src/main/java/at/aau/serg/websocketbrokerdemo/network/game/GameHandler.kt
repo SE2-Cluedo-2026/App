@@ -3,6 +3,7 @@ package at.aau.serg.websocketbrokerdemo.network.game
 import android.util.Log
 import at.aau.serg.websocketbrokerdemo.messaging.dtos.GameMessageType
 import at.aau.serg.websocketbrokerdemo.model.ClientState
+import at.aau.serg.websocketbrokerdemo.messaging.dtos.ExistingPlayerDTO
 import org.json.JSONObject
 
 class GameHandler {
