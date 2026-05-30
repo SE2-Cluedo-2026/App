@@ -213,6 +213,18 @@ class LobbyActivity : ComponentActivity() {
     }
 
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (isLeaving) return
+        isLeaving = true
+        MyStomp.instance.leaveLobby()
+        MyStomp.instance.disconnect()
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+        finish()
+    }
+
     override fun onDestroy() {
         LobbyHandler.onLobbyJoined = null
         LobbyHandler.onNewPlayerJoined = null
