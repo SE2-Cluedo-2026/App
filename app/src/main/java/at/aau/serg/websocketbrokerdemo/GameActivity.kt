@@ -44,6 +44,8 @@ class GameActivity : ComponentActivity() {
     private var pauseOverlay: View? = null
     private var countdownHandler: android.os.Handler? = null
     private var countdownRunnable: Runnable? = null
+    private var cheatWindowOverlay: View? = null
+    private var cheatDecisionOverlay: View? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -411,6 +413,50 @@ class GameActivity : ComponentActivity() {
             }
         }
 
+        GameHandler.onSuggestionRequest = { suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards ->
+            runOnUiThread {
+                if (suggesterID != ClientState.playerId && !ClientState.cheatUsed && !ClientState.isEliminated) {
+                    showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
+                } else if (suggesterID == ClientState.playerId) {
+                    if (matchingCards.isNotEmpty()) {
+                        GameUIHelper.showResultCards(this, rootLayout, matchingCards)
+                        updateChecklist()
+                    } else {
+                        Toast.makeText(this, getString(R.string.no_matching_cards), Toast.LENGTH_SHORT).show()
+                    }
+                    showCheatDecisionOverlay()
+                }
+            }
+        }
+
+        GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard ->
+            runOnUiThread {
+                dismissCheatOverlays()
+
+                if (cheatDetected) {
+                    if (cheaters.any { it.first == ClientState.playerId }) {
+                        ClientState.cheatUsed = true
+                    }
+                }
+
+                if (cheatDetected) {
+                    val allCards = cheaters.flatMap { it.second }
+                    val msg = "Cheat detected! Revealed cards: ${allCards.joinToString(", ")}"
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                    if (allCards.isNotEmpty()) {
+                        GameUIHelper.showResultCards(this, rootLayout, allCards, 5000)
+                    }
+                } else {
+                    val msg = if (revealedCard != null)
+                        "No cheat detected. One of your cards was revealed: $revealedCard"
+                    else
+                        "No cheat detected."
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                }
+                updateButtonStates()
+            }
+        }
+
         GameHandler.onAccusation = { accuserID, suspect, room, weapon, correct, eliminated ->
             runOnUiThread {
                 // All players see the accusation cards
@@ -503,6 +549,8 @@ class GameActivity : ComponentActivity() {
         GameHandler.onHiddenWay = null
         GameHandler.onAccusation = null
         GameHandler.onSuggestionResult = null
+        GameHandler.onSuggestionRequest = null
+        GameHandler.onCheatResult = null
         GameHandler.onGameFinished = null
         GameHandler.onGameAborted = null
         GameHandler.onGamePaused = null
@@ -671,6 +719,166 @@ class GameActivity : ComponentActivity() {
         countdownHandler = null
         pauseOverlay?.let { rootLayout.removeView(it) }
         pauseOverlay = null
+    }
+
+    private fun showCheatWindow(
+        suggesterID: String,
+        suspect: String,
+        room: String,
+        weapon: String,
+        windowSeconds: Int
+    ) {
+        dismissCheatOverlays()
+
+        val overlay = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.argb(200, 0, 0, 0))
+            isClickable = true
+        }
+
+        val inner = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(48, 48, 48, 48)
+        }
+
+        val tvInfo = TextView(this).apply {
+            text = "${suggesterID.take(8)}... suggests:\n$suspect, $room, $weapon"
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 14f
+            gravity = android.view.Gravity.CENTER
+        }
+
+        val tvCountdown = TextView(this).apply {
+            text = "Cheat window: ${windowSeconds}s"
+            setTextColor(android.graphics.Color.YELLOW)
+            textSize = 16f
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 16, 0, 16)
+        }
+
+        val btnCheat = Button(this).apply {
+            text = "CHEAT!"
+            textSize = 18f
+            setBackgroundColor(android.graphics.Color.parseColor("#E53935"))
+            setTextColor(android.graphics.Color.WHITE)
+            isEnabled = !ClientState.cheatUsed
+            alpha = if (ClientState.cheatUsed) 0.4f else 1.0f
+        }
+
+        btnCheat.setOnClickListener {
+            MyStomp.instance.sendCheatAttempt()
+            btnCheat.isEnabled = false
+            btnCheat.text = "Cheat sent!"
+            btnCheat.alpha = 0.6f
+        }
+
+        inner.addView(tvInfo)
+        inner.addView(tvCountdown)
+        inner.addView(btnCheat)
+        overlay.addView(inner, android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.CENTER
+        ))
+        rootLayout.addView(overlay, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        cheatWindowOverlay = overlay
+
+        var remaining = windowSeconds
+        val handler = android.os.Handler(mainLooper)
+        val tick = object : Runnable {
+            override fun run() {
+                if (remaining > 0) {
+                    tvCountdown.text = "Cheat window: ${remaining}s"
+                    remaining--
+                    handler.postDelayed(this, 1000)
+                } else {
+                    dismissCheatOverlays()
+                }
+            }
+        }
+        handler.post(tick)
+    }
+
+    private fun showCheatDecisionOverlay() {
+        dismissCheatOverlays()
+
+        val overlay = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.argb(200, 20, 20, 20))
+            isClickable = true
+        }
+
+        val inner = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(48, 48, 48, 48)
+        }
+
+        val tvInfo = TextView(this).apply {
+            text = "Did someone cheat?"
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 18f
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 0, 0, 24)
+        }
+
+        val tvCountdown = TextView(this).apply {
+            text = "3s to decide..."
+            setTextColor(android.graphics.Color.YELLOW)
+            textSize = 14f
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 0, 0, 16)
+        }
+
+        val btnYes = Button(this).apply {
+            text = "YES, someone cheated!"
+            setBackgroundColor(android.graphics.Color.parseColor("#E53935"))
+            setTextColor(android.graphics.Color.WHITE)
+        }
+
+        val btnNo = Button(this).apply {
+            text = "No cheat"
+            setBackgroundColor(android.graphics.Color.parseColor("#388E3C"))
+            setTextColor(android.graphics.Color.WHITE)
+        }
+
+        val sendDecision = { pressed: Boolean ->
+            MyStomp.instance.sendCheatButtonPressed(pressed)
+            dismissCheatOverlays()
+        }
+
+        btnYes.setOnClickListener { sendDecision(true) }
+        btnNo.setOnClickListener { sendDecision(false) }
+
+        inner.addView(tvInfo)
+        inner.addView(tvCountdown)
+        inner.addView(btnYes)
+        inner.addView(btnNo)
+        overlay.addView(inner, android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.CENTER
+        ))
+        rootLayout.addView(overlay, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        cheatDecisionOverlay = overlay
+
+        android.os.Handler(mainLooper).postDelayed({
+            if (cheatDecisionOverlay != null) {
+                sendDecision(false)
+            }
+        }, 3000)
+    }
+
+    private fun dismissCheatOverlays() {
+        cheatWindowOverlay?.let { rootLayout.removeView(it) }
+        cheatWindowOverlay = null
+        cheatDecisionOverlay?.let { rootLayout.removeView(it) }
+        cheatDecisionOverlay = null
     }
 
     private fun updateAllPlayerStatuses() {

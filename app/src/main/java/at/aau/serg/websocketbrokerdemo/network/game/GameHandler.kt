@@ -15,6 +15,8 @@ class GameHandler {
         var onHiddenWay: ((String,String) -> Unit)? = null
         var onAccusation: ((String, String, String, String, Boolean, Boolean) -> Unit)? = null
         var onSuggestionResult: ((String, String, String, String, List<String>) -> Unit)? = null
+        var onSuggestionRequest: ((String, String, String, String, Int, List<String>) -> Unit)? = null
+        var onCheatResult: ((Boolean, List<Pair<String, List<String>>>, String?) -> Unit)? = null
         var onGameFinished: ((String) -> Unit)? = null
         var onGameAborted: ((String) -> Unit)? = null
         var onGamePaused: ((String, Int) -> Unit)? = null
@@ -185,6 +187,50 @@ class GameHandler {
                             }
                         }
                         onGameAborted?.invoke(reason)
+                    }
+
+                    GameMessageType.SUGGESTION_REQUEST.name -> {
+                        if (payload == null) return
+                        val suggesterID = payload.getString("suggesterID")
+                        val suspect = payload.getString("suspect")
+                        val room = payload.getString("room")
+                        val weapon = payload.getString("weapon")
+                        val cheatWindowSeconds = payload.optInt("cheatWindowSeconds", 5)
+                        val matchingCards = mutableListOf<String>()
+                        val cardsArray = payload.optJSONArray("matchingCards")
+                        if (cardsArray != null) {
+                            for (i in 0 until cardsArray.length()) {
+                                matchingCards.add(cardsArray.getJSONObject(i).getString("name"))
+                            }
+                        }
+                        onSuggestionRequest?.invoke(suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards)
+                    }
+
+                    GameMessageType.CHEAT_RESULT.name -> {
+                        if (payload == null) return
+                        val cheatDetected = payload.getBoolean("cheatDetected")
+                        if (cheatDetected) {
+                            val cheatersArray = payload.optJSONArray("cheaters")
+                            val cheaters = mutableListOf<Pair<String, List<String>>>()
+                            if (cheatersArray != null) {
+                                for (i in 0 until cheatersArray.length()) {
+                                    val cheaterObj = cheatersArray.getJSONObject(i)
+                                    val pid = cheaterObj.getString("playerId")
+                                    val cardsArr = cheaterObj.optJSONArray("cards")
+                                    val cards = mutableListOf<String>()
+                                    if (cardsArr != null) {
+                                        for (j in 0 until cardsArr.length()) {
+                                            cards.add(cardsArr.getJSONObject(j).getString("name"))
+                                        }
+                                    }
+                                    cheaters.add(Pair(pid, cards))
+                                }
+                            }
+                            onCheatResult?.invoke(true, cheaters, null)
+                        } else {
+                            val revealedCard = payload.optString("revealedCard", "").ifEmpty { null }
+                            onCheatResult?.invoke(false, emptyList(), revealedCard)
+                        }
                     }
 
                     "ROLL_DICE_ERROR", "MOVE_ERROR", "ENTER_ROOM_ERROR",
