@@ -15,7 +15,7 @@ enum class GameMessageType {
     GAME_PAUSED,
     CONTINUE_GAME,
     GAME_ABORTED,
-    CHEAT_ATTEPMT,
+    CHEAT_ATTEMPT,
     CHEAT_BUTTON_PRESSED,
     CHEAT_RESULT
 }
