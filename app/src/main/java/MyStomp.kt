@@ -284,5 +284,16 @@ class MyStomp(val callbacks: Callbacks) {
             payload.put("weapon", weapon)
         }
     }
+    fun sendCheatAttempt() {
+        sendGameMessage("CHEAT_ATTEMPT") { payload ->
+            payload.put("playerId", ClientState.playerId)
+        }
+    }
 
+    fun sendCheatButtonPressed(cheatPressed: Boolean) {
+        sendGameMessage("CHEAT_BUTTON_PRESSED") { payload ->
+            payload.put("suggesterID", ClientState.playerId)
+            payload.put("cheatPressed", cheatPressed)
+        }
+    }
 }
