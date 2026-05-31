@@ -226,17 +226,22 @@ class LobbyActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        LobbyHandler.onLobbyJoined = null
-        LobbyHandler.onNewPlayerJoined = null
-        LobbyHandler.onPlayerRejoined = null
-        LobbyHandler.onPlayerRejoinedRunning = null
-        LobbyHandler.onGameFull = null
-        LobbyHandler.onPlayerRemoved = null
-        LobbyHandler.onOtherPlayerRemoved = null
-        LobbyHandler.onSetReady = null
-        LobbyHandler.onGameStarted = null
-        LobbyHandler.onStartGameError = null
-        LobbyHandler.onError = null
+        // Only clear callbacks when the system destroys us (e.g. config change).
+        // When isLeaving is true, MainActivity is already setting up its own
+        // callbacks in onStart() — clearing here would null them out.
+        if (!isLeaving) {
+            LobbyHandler.onLobbyJoined = null
+            LobbyHandler.onNewPlayerJoined = null
+            LobbyHandler.onPlayerRejoined = null
+            LobbyHandler.onPlayerRejoinedRunning = null
+            LobbyHandler.onGameFull = null
+            LobbyHandler.onPlayerRemoved = null
+            LobbyHandler.onOtherPlayerRemoved = null
+            LobbyHandler.onSetReady = null
+            LobbyHandler.onGameStarted = null
+            LobbyHandler.onStartGameError = null
+            LobbyHandler.onError = null
+        }
         super.onDestroy()
     }
 
