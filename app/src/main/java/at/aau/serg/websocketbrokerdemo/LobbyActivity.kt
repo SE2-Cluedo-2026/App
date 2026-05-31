@@ -35,6 +35,7 @@ class LobbyActivity : ComponentActivity() {
 
         LobbyHandler.onGameStarted = {
             runOnUiThread {
+                isLeaving = true // prevent onUserLeaveHint from disconnecting
                 val intent = Intent(this, GameActivity::class.java)
                 startActivity(intent)
             }
