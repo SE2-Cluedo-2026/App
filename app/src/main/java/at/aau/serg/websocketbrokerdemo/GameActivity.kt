@@ -275,6 +275,11 @@ class GameActivity : ComponentActivity() {
         }
     }
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        onLeaveGame()
+    }
+
     private fun onLeaveGame() {
         // Only disconnect — the server's SessionDisconnectEvent will start the 30-second
         // pause/rejoin timer. Calling leaveLobby() before disconnect would race with
