@@ -18,10 +18,6 @@ class MainActivity : ComponentActivity(), Callbacks {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Always create a fresh MyStomp — it resets internal state cleanly
-        // and keeps the CoroutineScope alive for reconnection.
-        myStomp = MyStomp(this)
-
         val playerId = UserPreferences.getOrCreatePlayerId(this)
         ClientState.playerId = playerId
 
@@ -29,7 +25,27 @@ class MainActivity : ComponentActivity(), Callbacks {
 
         setContentView(R.layout.cluedo_fragment_fullscreen)
 
+        val btnLearn = findViewById<Button>(R.id.btnLearn)
+        btnLearn.setOnClickListener {
+            val intent = Intent(this, LearnActivity::class.java)
+            startActivity(intent)
+        }
+
+        val btnStart = findViewById<Button>(R.id.btnStart)
+        btnStart.setOnClickListener {
+            findViewById<android.widget.FrameLayout>(R.id.loadingOverlay).visibility = android.view.View.VISIBLE
+            myStomp.connect()
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        // Re-create MyStomp so we get a clean session on every (re-)visit
+        myStomp = MyStomp(this)
+
         val loadingOverlay = findViewById<android.widget.FrameLayout>(R.id.loadingOverlay)
+        loadingOverlay.visibility = android.view.View.GONE
 
         LobbyHandler.onLobbyJoined = {
             runOnUiThread {
@@ -53,21 +69,6 @@ class MainActivity : ComponentActivity(), Callbacks {
                 startActivity(Intent(this, GameActivity::class.java))
             }
         }
-
-        val btnLearn = findViewById<Button>(R.id.btnLearn)
-
-        btnLearn.setOnClickListener {
-            val intent = Intent(this, LearnActivity::class.java)
-            startActivity(intent)
-        }
-
-
-        val btnStart = findViewById<Button>(R.id.btnStart)
-        btnStart.setOnClickListener {
-            loadingOverlay.visibility = android.view.View.VISIBLE
-            myStomp.connect()
-        }
-
     }
 
     override fun onDestroy() {

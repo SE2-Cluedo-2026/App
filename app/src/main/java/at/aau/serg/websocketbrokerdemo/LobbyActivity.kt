@@ -213,18 +213,35 @@ class LobbyActivity : ComponentActivity() {
     }
 
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (isLeaving) return
+        isLeaving = true
+        MyStomp.instance.leaveLobby()
+        MyStomp.instance.disconnect()
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+        finish()
+    }
+
     override fun onDestroy() {
-        LobbyHandler.onLobbyJoined = null
-        LobbyHandler.onNewPlayerJoined = null
-        LobbyHandler.onPlayerRejoined = null
-        LobbyHandler.onPlayerRejoinedRunning = null
-        LobbyHandler.onGameFull = null
-        LobbyHandler.onPlayerRemoved = null
-        LobbyHandler.onOtherPlayerRemoved = null
-        LobbyHandler.onSetReady = null
-        LobbyHandler.onGameStarted = null
-        LobbyHandler.onStartGameError = null
-        LobbyHandler.onError = null
+        // Only clear callbacks when the system destroys us (e.g. config change).
+        // When isLeaving is true, MainActivity is already setting up its own
+        // callbacks in onStart() — clearing here would null them out.
+        if (!isLeaving) {
+            LobbyHandler.onLobbyJoined = null
+            LobbyHandler.onNewPlayerJoined = null
+            LobbyHandler.onPlayerRejoined = null
+            LobbyHandler.onPlayerRejoinedRunning = null
+            LobbyHandler.onGameFull = null
+            LobbyHandler.onPlayerRemoved = null
+            LobbyHandler.onOtherPlayerRemoved = null
+            LobbyHandler.onSetReady = null
+            LobbyHandler.onGameStarted = null
+            LobbyHandler.onStartGameError = null
+            LobbyHandler.onError = null
+        }
         super.onDestroy()
     }
 
