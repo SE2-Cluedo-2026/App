@@ -320,9 +320,11 @@ class GameActivity : ComponentActivity() {
 
                         if (room != null) {
                             // Problem 3 Fix: Show dialog to enter room on door field
-                            val dialogView = layoutInflater.inflate(R.layout.dialog_enter_room, null)
+                            val dialogView =
+                                layoutInflater.inflate(R.layout.dialog_enter_room, null)
                             dialogView.findViewById<TextView>(R.id.tvTitle).text = "ENTER $room?"
-                            dialogView.findViewById<TextView>(R.id.tvMessage).text = "DO YOU WANT TO ENTER THE $room?"
+                            dialogView.findViewById<TextView>(R.id.tvMessage).text =
+                                "DO YOU WANT TO ENTER THE $room?"
 
                             val customDialog = android.app.AlertDialog.Builder(this)
                                 .setView(dialogView)
@@ -410,7 +412,10 @@ class GameActivity : ComponentActivity() {
                     } else {
                         Toast.makeText(
                             this,
-                            getString(R.string.suggestion_made, "${suggesterID.take(8)}..."),
+                            getString(
+                                R.string.suggestion_made,
+                                playerDisplayName(suggesterID)
+                            ),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -418,21 +423,26 @@ class GameActivity : ComponentActivity() {
             }
         }
 
-        GameHandler.onSuggestionRequest = { suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards ->
-            runOnUiThread {
-                if (suggesterID != ClientState.playerId && !ClientState.cheatUsed && !ClientState.isEliminated) {
-                    showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
-                } else if (suggesterID == ClientState.playerId) {
-                    if (matchingCards.isNotEmpty()) {
-                        GameUIHelper.showResultCards(this, rootLayout, matchingCards)
-                        updateChecklist()
-                    } else {
-                        Toast.makeText(this, getString(R.string.no_matching_cards), Toast.LENGTH_SHORT).show()
+        GameHandler.onSuggestionRequest =
+            { suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards ->
+                runOnUiThread {
+                    if (suggesterID != ClientState.playerId && !ClientState.cheatUsed && !ClientState.isEliminated) {
+                        showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
+                    } else if (suggesterID == ClientState.playerId) {
+                        if (matchingCards.isNotEmpty()) {
+                            GameUIHelper.showResultCards(this, rootLayout, matchingCards)
+                            updateChecklist()
+                        } else {
+                            Toast.makeText(
+                                this,
+                                getString(R.string.no_matching_cards),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        showCheatDecisionOverlay()
                     }
-                    showCheatDecisionOverlay()
                 }
             }
-        }
 
         GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard ->
             runOnUiThread {
@@ -470,7 +480,7 @@ class GameActivity : ComponentActivity() {
                     val msg =
                         if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(
                             R.string.player_won,
-                            "${accuserID.take(8)}..."
+                            playerDisplayName(accuserID)
                         )
                     android.os.Handler(mainLooper).postDelayed({
                         GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
@@ -486,7 +496,10 @@ class GameActivity : ComponentActivity() {
                     } else {
                         Toast.makeText(
                             this,
-                            getString(R.string.player_eliminated, "${accuserID.take(8)}..."),
+                            getString(
+                                R.string.player_eliminated,
+                                playerDisplayName(accuserID)
+                            ),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -499,7 +512,7 @@ class GameActivity : ComponentActivity() {
                 val msg =
                     if (winner == ClientState.playerId) getString(R.string.you_won) else getString(
                         R.string.player_won,
-                        "${winner.take(8)}..."
+                        playerDisplayName(winner)
                     )
                 GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
             }
@@ -680,6 +693,12 @@ class GameActivity : ComponentActivity() {
         btn.isClickable = active
     }
 
+    private fun playerDisplayName(playerId: String): String {
+        return ClientState.playerCharacterMap[playerId]
+            ?: ClientState.players.find { it.playerId == playerId }?.character
+            ?: "Unknown Player"
+    }
+
     private fun showPauseOverlay(disconnectedId: String, countdown: Int) {
         dismissPauseOverlay()
 
@@ -707,7 +726,7 @@ class GameActivity : ComponentActivity() {
             override fun run() {
                 if (remaining > 0) {
                     textView.text = getString(R.string.player_disconnected_countdown,
-                        disconnectedId.take(8), remaining)
+                        playerDisplayName(disconnectedId), remaining)
                     remaining--
                     handler.postDelayed(this, 1000)
                 }
@@ -747,7 +766,7 @@ class GameActivity : ComponentActivity() {
         }
 
         val tvInfo = TextView(this).apply {
-            text = "${suggesterID.take(8)}... suggests:\n$suspect, $room, $weapon"
+            text = "${playerDisplayName(suggesterID)} suggests:\n$suspect, $room, $weapon"
             setTextColor(android.graphics.Color.WHITE)
             textSize = 14f
             gravity = android.view.Gravity.CENTER
