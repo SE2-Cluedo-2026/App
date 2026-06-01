@@ -61,6 +61,10 @@ object LobbyHandler {
                 }
 
                 LobbyMessageType.PLAYER_REJOINED_RUNNING -> {
+                    val playerPositions = payload.getJSONObject("playerPositions")
+                    playerPositions.keys().forEach { playerId ->
+                        ClientState.playerPositions[playerId] = playerPositions.getString(playerId)
+                    }
                     val rejoinedPlayerId = payload.optString("playerId", "")
                     val isMe = rejoinedPlayerId == ClientState.playerId
 
