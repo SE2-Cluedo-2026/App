@@ -87,6 +87,9 @@ class GameActivity : ComponentActivity() {
                         setupBoard()
                         // Re-apply positions that may have arrived before layout was ready
                         placeAllPlayerDots()
+                        updateAllPlayerStatuses()
+                        updateCurrentPlayerHighlight()
+                        updateButtonStates()
                     }
                 }
             }
@@ -531,6 +534,9 @@ class GameActivity : ComponentActivity() {
                 Toast.makeText(this,
                     "Player rejoined! Game resumed.",
                     Toast.LENGTH_SHORT).show()
+                updateAllPlayerStatuses()
+                updateCurrentPlayerHighlight()
+                updateButtonStates()
             }
         }
 
