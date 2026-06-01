@@ -179,6 +179,7 @@ class GameActivity : ComponentActivity() {
         }
     }
 
+    /*
     private fun initializePlayerPositions() {
         val players = ClientState.players
         players.forEach { player ->
