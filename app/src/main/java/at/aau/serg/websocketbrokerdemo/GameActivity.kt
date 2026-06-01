@@ -190,6 +190,20 @@ class GameActivity : ComponentActivity() {
         }
     }
 
+
+     */
+    private fun initializePlayerPositions() {
+        val players = ClientState.players
+        players.forEach { player ->
+            // Nur setzen wenn noch KEINE Position bekannt ist (z.B. echter Neustart)
+            if (!ClientState.playerPositions.containsKey(player.playerId)) {
+                val charType = ClientState.playerCharacterMap[player.playerId] ?: player.character
+                val startPos = charType?.let { BoardConfig.CHARACTER_START_POSITIONS[it] }
+                ClientState.playerPositions[player.playerId] =
+                    if (startPos != null) "${startPos.first},${startPos.second}" else "6,4"
+            }
+        }
+    }
     private fun onCellTapped(col: Int, row: Int) {
         if (!isMyTurn() || ClientState.isEliminated) return
 
