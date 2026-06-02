@@ -34,6 +34,9 @@
         <activity
             android:name="at.aau.serg.websocketbrokerdemo.GameActivity"
             android:screenOrientation="landscape" />
+        <service
+            android:name="at.aau.serg.websocketbrokerdemo.DisconnectService"
+            android:stopWithTask="false" />
     </application>
 
 </manifest>
