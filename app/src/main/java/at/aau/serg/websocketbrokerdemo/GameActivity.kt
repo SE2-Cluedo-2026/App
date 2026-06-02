@@ -556,7 +556,8 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onGameAborted = { reason ->
             runOnUiThread {
-                GameUIHelper.showGameEndOverlay(this, rootLayout, getString(R.string.game_over, reason))
+                val displayReason = replacePlayerIdsWithNames(reason)
+                GameUIHelper.showGameEndOverlay(this, rootLayout, getString(R.string.game_over, displayReason))
                 android.os.Handler(mainLooper).postDelayed({
                     val intent = Intent(this, LobbyActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -718,6 +719,21 @@ class GameActivity : ComponentActivity() {
         return ClientState.playerCharacterMap[playerId]
             ?: ClientState.players.find { it.playerId == playerId }?.character
             ?: "Unknown Player"
+    }
+
+    private fun replacePlayerIdsWithNames(text: String): String {
+        var result = text
+
+        ClientState.players.forEach { player ->
+            val name = playerDisplayName(player.playerId)
+            result = result.replace(player.playerId, name)
+        }
+
+        ClientState.playerCharacterMap.forEach { (playerId, characterName) ->
+            result = result.replace(playerId, characterName)
+        }
+
+        return result
     }
 
     private fun showPauseOverlay(disconnectedId: String, countdown: Int) {
