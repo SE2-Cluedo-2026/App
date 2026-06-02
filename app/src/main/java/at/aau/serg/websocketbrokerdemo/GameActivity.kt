@@ -1,14 +1,16 @@
 package at.aau.serg.websocketbrokerdemo
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
-import android.content.Intent
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
@@ -47,10 +49,36 @@ class GameActivity : ComponentActivity() {
     private var cheatWindowOverlay: View? = null
     private var cheatDecisionOverlay: View? = null
 
+    private var isLeaving = false
+    private val bgDisconnectHandler = Handler(Looper.getMainLooper())
+    private val bgDisconnectRunnable = Runnable {
+        if (!isLeaving) {
+            isLeaving = true
+            stopDisconnectService()
+            MyStomp.instance.disconnect()
+            val intent = Intent(this, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+            finish()
+        }
+    }
+
+    private fun startDisconnectService() {
+        startService(Intent(this, DisconnectService::class.java).apply {
+            putExtra(DisconnectService.EXTRA_MODE, DisconnectService.MODE_GAME)
+        })
+    }
+
+    private fun stopDisconnectService() {
+        stopService(Intent(this, DisconnectService::class.java))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+
+        startDisconnectService()
 
         rootLayout = findViewById(R.id.rootGameLayout)
         boardImage = findViewById(R.id.imgBoard)
@@ -293,12 +321,23 @@ class GameActivity : ComponentActivity() {
         }
     }
 
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        onLeaveGame()
+    override fun onPause() {
+        super.onPause()
+        if (!isLeaving) {
+            bgDisconnectHandler.postDelayed(bgDisconnectRunnable, 5000)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
     }
 
     private fun onLeaveGame() {
+        if (isLeaving) return
+        isLeaving = true
+        bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
+        stopDisconnectService()
         // Only disconnect — the server's SessionDisconnectEvent will start the 30-second
         // pause/rejoin timer. Calling leaveLobby() before disconnect would race with
         // the session closing and could bypass the rejoin logic entirely.
@@ -580,6 +619,8 @@ class GameActivity : ComponentActivity() {
     }*/
 
     override fun onDestroy() {
+        bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
+        stopDisconnectService()
         dismissPauseOverlay()
         GameHandler.onRollDice = null
         GameHandler.onMove = null
