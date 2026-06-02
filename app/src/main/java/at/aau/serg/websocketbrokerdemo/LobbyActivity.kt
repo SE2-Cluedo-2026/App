@@ -203,7 +203,7 @@ class LobbyActivity : ComponentActivity() {
 
         LobbyHandler.onSetReady = { dto ->
             runOnUiThread {
-
+                playSound(R.raw.player_ready_sound)
                 ClientState.players = dto.existingPlayers
                 ClientState.availableCharacters = dto.availableCharacters
 
@@ -228,6 +228,7 @@ class LobbyActivity : ComponentActivity() {
 
         LobbyHandler.onOtherPlayerRemoved = { playerId ->
             runOnUiThread {
+                playSound(R.raw.player_lobby_leave_sound)
                 val updated = ClientState.players.filter { it.playerId != playerId }
                 ClientState.players = updated
                 updateOtherPlayers(updated, otherPlayerViews, otherReadyChecks)
