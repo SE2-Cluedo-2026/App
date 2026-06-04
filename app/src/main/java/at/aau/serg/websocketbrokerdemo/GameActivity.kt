@@ -564,6 +564,10 @@ class GameActivity : ComponentActivity() {
                 // All players see the accusation cards
                 GameUIHelper.showResultCards(this, rootLayout, listOf(suspect, weapon, room), 3000)
                 if (correct) {
+                    bgMusic?.stop()
+                    bgMusic?.release()
+                    bgMusic = null
+                    playSound(R.raw.win_sound)
                     val msg =
                         if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(
                             R.string.player_won,
@@ -573,6 +577,7 @@ class GameActivity : ComponentActivity() {
                         GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
                     }, 3500)
                 } else if (eliminated) {
+                    playSound(R.raw.player_eliminated_sound)
                     // Only show elimination message, differentiate by playerId
                     if (accuserID == ClientState.playerId) {
                         Toast.makeText(
@@ -596,6 +601,10 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onGameFinished = { winner ->
             runOnUiThread {
+                bgMusic?.stop()
+                bgMusic?.release()
+                bgMusic = null
+                playSound(R.raw.win_sound)
                 val msg =
                     if (winner == ClientState.playerId) getString(R.string.you_won) else getString(
                         R.string.player_won,
@@ -637,6 +646,11 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onGameAborted = { reason ->
             runOnUiThread {
+                stopWaitingMusic()
+                bgMusic?.stop()
+                bgMusic?.release()
+                bgMusic = null
+                playSound(R.raw.game_over_sound)
                 GameUIHelper.showGameEndOverlay(this, rootLayout, getString(R.string.game_over, reason))
                 android.os.Handler(mainLooper).postDelayed({
                     val intent = Intent(this, LobbyActivity::class.java)
