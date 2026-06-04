@@ -45,6 +45,7 @@ android {
 
     testOptions {
         unitTests {
+            isReturnDefaultValues = true
             all {
                 it.useJUnitPlatform()
                 it.finalizedBy(tasks.named("jacocoTestReport"))
