@@ -3,6 +3,7 @@ package at.aau.serg.websocketbrokerdemo
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -49,6 +50,9 @@ class GameActivity : ComponentActivity() {
     private var cheatWindowOverlay: View? = null
     private var cheatDecisionOverlay: View? = null
 
+    private var bgMusic: MediaPlayer? = null
+    private var waitingMusic: MediaPlayer? = null
+
     private var isLeaving = false
     private val bgDisconnectHandler = Handler(Looper.getMainLooper())
     private val bgDisconnectRunnable = Runnable {
@@ -73,12 +77,29 @@ class GameActivity : ComponentActivity() {
         stopService(Intent(this, DisconnectService::class.java))
     }
 
+    private fun playSound(resId: Int) {
+        val player = MediaPlayer.create(this, resId)
+        player?.start()
+        player?.setOnCompletionListener { it.release() }
+    }
+
+    private fun stopWaitingMusic() {
+        waitingMusic?.stop()
+        waitingMusic?.release()
+        waitingMusic = null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
 
         startDisconnectService()
+
+        bgMusic = MediaPlayer.create(this, R.raw.game_music)
+        bgMusic?.isLooping = true
+        bgMusic?.setVolume(0.1f, 0.1f)
+        bgMusic?.start()
 
         rootLayout = findViewById(R.id.rootGameLayout)
         boardImage = findViewById(R.id.imgBoard)
@@ -323,6 +344,7 @@ class GameActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
+        bgMusic?.pause()
         if (!isLeaving) {
             bgDisconnectHandler.postDelayed(bgDisconnectRunnable, 5000)
         }
@@ -331,6 +353,9 @@ class GameActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
+        if (waitingMusic == null) {
+            bgMusic?.start()
+        }
     }
 
     private fun onLeaveGame() {
@@ -338,6 +363,10 @@ class GameActivity : ComponentActivity() {
         isLeaving = true
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
         stopDisconnectService()
+        bgMusic?.stop()
+        bgMusic?.release()
+        bgMusic = null
+        stopWaitingMusic()
         // Only disconnect — the server's SessionDisconnectEvent will start the 30-second
         // pause/rejoin timer. Calling leaveLobby() before disconnect would race with
         // the session closing and could bypass the rejoin logic entirely.
@@ -578,12 +607,24 @@ class GameActivity : ComponentActivity() {
         GameHandler.onGamePaused = { disconnectedId, countdown ->
             runOnUiThread {
                 showPauseOverlay(disconnectedId, countdown)
+                bgMusic?.pause()
+                val leavePlayer = MediaPlayer.create(this, R.raw.ingame_leave_sound)
+                leavePlayer?.setOnCompletionListener {
+                    it.release()
+                    waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
+                    waitingMusic?.isLooping = true
+                    waitingMusic?.start()
+                }
+                leavePlayer?.start()
             }
         }
 
         GameHandler.onContinueGame = { rejoinedId ->
             runOnUiThread {
                 dismissPauseOverlay()
+                stopWaitingMusic()
+                playSound(R.raw.player_returned_sound)
+                bgMusic?.start()
                 Toast.makeText(this,
                     "Player rejoined! Game resumed.",
                     Toast.LENGTH_SHORT).show()
@@ -621,6 +662,10 @@ class GameActivity : ComponentActivity() {
     override fun onDestroy() {
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
         stopDisconnectService()
+        bgMusic?.stop()
+        bgMusic?.release()
+        bgMusic = null
+        stopWaitingMusic()
         dismissPauseOverlay()
         GameHandler.onRollDice = null
         GameHandler.onMove = null
