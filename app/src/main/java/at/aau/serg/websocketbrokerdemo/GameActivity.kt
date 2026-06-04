@@ -380,6 +380,7 @@ class GameActivity : ComponentActivity() {
     private fun setupGameHandlers() {
         GameHandler.onRollDice = { value, newPosition ->
             runOnUiThread {
+                playSound(R.raw.roll_dice_sound)
                 Toast.makeText(this, getString(R.string.dice_result, value), Toast.LENGTH_SHORT)
                     .show()
                 hiddenWayUsed = false
