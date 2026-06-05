@@ -186,12 +186,14 @@ class GameHandler {
                                 val playerList = mutableListOf<ExistingPlayerDTO>()
                                 for (i in 0 until existingPlayers.length()) {
                                     val p = existingPlayers.getJSONObject(i)
-                                    playerList.add(ExistingPlayerDTO(
-                                        playerId = p.getString("playerId"),
-                                        ready = p.optBoolean("ready", false),
-                                        character = null,
-                                        position = null
-                                    ))
+                                    playerList.add(
+                                        ExistingPlayerDTO(
+                                            playerId = p.getString("playerId"),
+                                            ready = p.optBoolean("ready", false),
+                                            character = null,
+                                            position = null
+                                        )
+                                    )
                                 }
                                 ClientState.players = playerList
                             }
@@ -212,33 +214,80 @@ class GameHandler {
                                 matchingCards.add(cardsArray.getJSONObject(i).getString("name"))
                             }
                         }
-                        onSuggestionRequest?.invoke(suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards)
+                        onSuggestionRequest?.invoke(
+                            suggesterID,
+                            suspect,
+                            room,
+                            weapon,
+                            cheatWindowSeconds,
+                            matchingCards
+                        )
                     }
 
                     GameMessageType.CHEAT_RESULT.name -> {
                         if (payload == null) return
-                        val cheatDetected = payload.getBoolean("cheatDetected")
+
+                        if (payload.has("currentPhase")) {
+                            ClientState.currentPhase = payload.getString("currentPhase")
+                        }
+
+                        if (payload.has("currentPlayerIndex")) {
+                            val currentPlayerIndex = payload.getInt("currentPlayerIndex")
+                            ClientState.currentPlayerIndex = currentPlayerIndex
+                            ClientState.remainingMoves = 0
+                            onEndTurn?.invoke(currentPlayerIndex)
+                        }
+
+                        val cheatDetected = payload.optBoolean("cheatDetected", false)
+                        val suggesterID = payload.optString("suggesterID", "")
+                        val targetPlayerId = payload.optString("targetPlayerId", suggesterID)
+                        val cheatersArray = payload.optJSONArray("cheaters")
+
                         if (cheatDetected) {
-                            val cheatersArray = payload.optJSONArray("cheaters")
-                            val cheaters = mutableListOf<Pair<String, List<String>>>()
                             if (cheatersArray != null) {
                                 for (i in 0 until cheatersArray.length()) {
-                                    val cheaterObj = cheatersArray.getJSONObject(i)
-                                    val pid = cheaterObj.getString("playerId")
-                                    val cardsArr = cheaterObj.optJSONArray("cards")
-                                    val cards = mutableListOf<String>()
-                                    if (cardsArr != null) {
-                                        for (j in 0 until cardsArr.length()) {
-                                            cards.add(cardsArr.getJSONObject(j).getString("name"))
-                                        }
+                                    if (cheatersArray.getJSONObject(i).getString("playerId") == ClientState.playerId) {
+                                        ClientState.cheatUsed = true
                                     }
-                                    cheaters.add(Pair(pid, cards))
                                 }
                             }
-                            onCheatResult?.invoke(true, cheaters, null)
+
+                            if (ClientState.playerId == targetPlayerId) {
+                                val cheaters = mutableListOf<Pair<String, List<String>>>()
+
+                                if (cheatersArray != null) {
+                                    for (i in 0 until cheatersArray.length()) {
+                                        val cheaterObj = cheatersArray.getJSONObject(i)
+                                        val pid = cheaterObj.optString("playerId", "")
+                                        val cardsArr = cheaterObj.optJSONArray("cards")
+                                        val cards = mutableListOf<String>()
+
+                                        if (cardsArr != null) {
+                                            for (j in 0 until cardsArr.length()) {
+                                                cards.add(cardsArr.getJSONObject(j).optString("name", ""))
+                                            }
+                                        }
+
+                                        if (pid.isNotEmpty()) {
+                                            cheaters.add(Pair(pid, cards.filter { it.isNotEmpty() }))
+                                        }
+                                    }
+                                }
+
+                                onCheatResult?.invoke(true, cheaters, null)
+                            }
                         } else {
-                            val revealedCard = payload.optString("revealedCard", "").ifEmpty { null }
-                            onCheatResult?.invoke(false, emptyList(), revealedCard)
+                            val revealedCardName = payload.optJSONObject("revealedCard")?.optString("name")
+
+                            if (ClientState.playerId == suggesterID) {
+                                onCheatResult?.invoke(false, emptyList(), null)
+                            } else {
+                                if (!revealedCardName.isNullOrEmpty()) {
+                                    ClientState.seenCards.add(revealedCardName)
+                                }
+
+                                onCheatResult?.invoke(false, emptyList(), revealedCardName)
+                            }
                         }
                     }
 
