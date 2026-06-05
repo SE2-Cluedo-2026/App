@@ -2,7 +2,10 @@ package at.aau.serg.websocketbrokerdemo
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.*
 import android.view.View
@@ -21,10 +24,42 @@ class LobbyActivity : ComponentActivity() {
     private var currentCharacterIndex = 0
     private var isLeaving = false
     private var isReady = false
+    private var bgMusic: MediaPlayer? = null
+
+    private val disconnectHandler = Handler(Looper.getMainLooper())
+    private val disconnectRunnable = Runnable {
+        if (!isLeaving) {
+            isLeaving = true
+            stopDisconnectService()
+            MyStomp.instance.leaveLobby()
+            MyStomp.instance.disconnect()
+            val intent = Intent(this, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+            finish()
+        }
+    }
+
+    private fun startDisconnectService() {
+        startService(Intent(this, DisconnectService::class.java).apply {
+            putExtra(DisconnectService.EXTRA_MODE, DisconnectService.MODE_LOBBY)
+        })
+    }
+
+    private fun stopDisconnectService() {
+        stopService(Intent(this, DisconnectService::class.java))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_lobby)
+
+        startDisconnectService()
+
+        bgMusic = MediaPlayer.create(this, R.raw.lobby_music)
+        bgMusic?.isLooping = true
+        bgMusic?.setVolume(0.1f, 0.1f)
+        bgMusic?.start()
 
         val loadingOverlay = findViewById<android.widget.FrameLayout>(R.id.loadingOverlay)
         loadingOverlay.visibility = android.view.View.VISIBLE
@@ -35,7 +70,12 @@ class LobbyActivity : ComponentActivity() {
 
         LobbyHandler.onGameStarted = {
             runOnUiThread {
-                isLeaving = true // prevent onUserLeaveHint from disconnecting
+                isLeaving = true
+                disconnectHandler.removeCallbacks(disconnectRunnable)
+                stopDisconnectService()
+                bgMusic?.stop()
+                bgMusic?.release()
+                bgMusic = null
                 val intent = Intent(this, GameActivity::class.java)
                 startActivity(intent)
             }
@@ -129,6 +169,8 @@ class LobbyActivity : ComponentActivity() {
             if (isLeaving) return@setOnClickListener
             isLeaving = true
             btnLeave.isEnabled = false
+            disconnectHandler.removeCallbacks(disconnectRunnable)
+            stopDisconnectService()
             MyStomp.instance.leaveLobby()
             MyStomp.instance.disconnect()
             val intent = Intent(this, MainActivity::class.java)
@@ -139,6 +181,7 @@ class LobbyActivity : ComponentActivity() {
         LobbyHandler.onNewPlayerJoined = { dto ->
             runOnUiThread {
                 loadingOverlay.visibility = android.view.View.GONE
+                playSound(R.raw.join_sound)
                 ClientState.players = dto.existingPlayers
                 ClientState.availableCharacters = dto.availableCharacters
                 availableCharacters = dto.availableCharacters.ifEmpty {
@@ -160,7 +203,7 @@ class LobbyActivity : ComponentActivity() {
 
         LobbyHandler.onSetReady = { dto ->
             runOnUiThread {
-
+                playSound(R.raw.player_ready_sound)
                 ClientState.players = dto.existingPlayers
                 ClientState.availableCharacters = dto.availableCharacters
 
@@ -185,6 +228,7 @@ class LobbyActivity : ComponentActivity() {
 
         LobbyHandler.onOtherPlayerRemoved = { playerId ->
             runOnUiThread {
+                playSound(R.raw.player_lobby_leave_sound)
                 val updated = ClientState.players.filter { it.playerId != playerId }
                 ClientState.players = updated
                 updateOtherPlayers(updated, otherPlayerViews, otherReadyChecks)
@@ -204,6 +248,8 @@ class LobbyActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this) {
             if (isLeaving) return@addCallback
             isLeaving = true
+            disconnectHandler.removeCallbacks(disconnectRunnable)
+            stopDisconnectService()
             MyStomp.instance.leaveLobby()
             MyStomp.instance.disconnect()
             val intent = Intent(this@LobbyActivity, MainActivity::class.java)
@@ -214,19 +260,30 @@ class LobbyActivity : ComponentActivity() {
     }
 
 
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        if (isLeaving) return
-        isLeaving = true
-        MyStomp.instance.leaveLobby()
-        MyStomp.instance.disconnect()
-        val intent = Intent(this, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-        startActivity(intent)
-        finish()
+    override fun onPause() {
+        super.onPause()
+        bgMusic?.pause()
+        if (!isLeaving) {
+            disconnectHandler.postDelayed(disconnectRunnable, 5000)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        bgMusic?.start()
+        disconnectHandler.removeCallbacks(disconnectRunnable)
+    }
+
+    private fun playSound(resId: Int) {
+        val player = MediaPlayer.create(this, resId)
+        player?.start()
+        player?.setOnCompletionListener { it.release() }
     }
 
     override fun onDestroy() {
+        bgMusic?.stop()
+        bgMusic?.release()
+        bgMusic = null
         // Only clear callbacks when the system destroys us (e.g. config change).
         // When isLeaving is true, MainActivity is already setting up its own
         // callbacks in onStart() — clearing here would null them out.

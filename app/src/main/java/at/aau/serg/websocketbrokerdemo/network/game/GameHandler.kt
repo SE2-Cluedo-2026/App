@@ -147,7 +147,17 @@ class GameHandler {
                     }
 
                     GameMessageType.GAME_ABORTED.name -> {
-                        val reason = payload?.optString("reason", "Game aborted") ?: "Game aborted"
+                        var reason = payload?.optString("reason", "Game aborted") ?: "Game aborted"
+                        ClientState.playerCharacterMap.forEach { (playerId, characterName) ->
+                            reason = reason.replace(playerId, characterName)
+                        }
+
+                        ClientState.players.forEach { player ->
+                            player.character?.let { characterName ->
+                                reason = reason.replace(player.playerId, characterName)
+                            }
+                        }
+                        onGameAborted?.invoke(reason)
                         // Reset client state back to lobby
                         ClientState.gameStatus = "LOBBY"
                         ClientState.currentPhase = ""
@@ -188,7 +198,6 @@ class GameHandler {
                                 ClientState.players = playerList
                             }
                         }
-                        onGameAborted?.invoke(reason)
                     }
 
                     GameMessageType.SUGGESTION_REQUEST.name -> {

@@ -1,14 +1,17 @@
 package at.aau.serg.websocketbrokerdemo
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
-import android.content.Intent
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
@@ -54,10 +57,56 @@ class GameActivity : ComponentActivity() {
     private var sensorManager: android.hardware.SensorManager? = null
     private var shakeDetector: ShakeDetector? = null
 
+    private var bgMusic: MediaPlayer? = null
+    private var waitingMusic: MediaPlayer? = null
+
+    private var isLeaving = false
+    private val bgDisconnectHandler = Handler(Looper.getMainLooper())
+    private val bgDisconnectRunnable = Runnable {
+        if (!isLeaving) {
+            isLeaving = true
+            stopDisconnectService()
+            MyStomp.instance.disconnect()
+            val intent = Intent(this, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+            finish()
+        }
+    }
+
+    private fun startDisconnectService() {
+        startService(Intent(this, DisconnectService::class.java).apply {
+            putExtra(DisconnectService.EXTRA_MODE, DisconnectService.MODE_GAME)
+        })
+    }
+
+    private fun stopDisconnectService() {
+        stopService(Intent(this, DisconnectService::class.java))
+    }
+
+    private fun playSound(resId: Int) {
+        val player = MediaPlayer.create(this, resId)
+        player?.start()
+        player?.setOnCompletionListener { it.release() }
+    }
+
+    private fun stopWaitingMusic() {
+        waitingMusic?.stop()
+        waitingMusic?.release()
+        waitingMusic = null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+
+        startDisconnectService()
+
+        bgMusic = MediaPlayer.create(this, R.raw.game_music)
+        bgMusic?.isLooping = true
+        bgMusic?.setVolume(0.1f, 0.1f)
+        bgMusic?.start()
 
         rootLayout = findViewById(R.id.rootGameLayout)
         boardImage = findViewById(R.id.imgBoard)
@@ -94,6 +143,9 @@ class GameActivity : ComponentActivity() {
                         setupBoard()
                         // Re-apply positions that may have arrived before layout was ready
                         placeAllPlayerDots()
+                        updateAllPlayerStatuses()
+                        updateCurrentPlayerHighlight()
+                        updateButtonStates()
                     }
                 }
             }
@@ -183,6 +235,7 @@ class GameActivity : ComponentActivity() {
         }
     }
 
+    /*
     private fun initializePlayerPositions() {
         val players = ClientState.players
         players.forEach { player ->
@@ -197,6 +250,20 @@ class GameActivity : ComponentActivity() {
         }
     }
 
+
+     */
+    private fun initializePlayerPositions() {
+        val players = ClientState.players
+        players.forEach { player ->
+            // Nur setzen wenn noch KEINE Position bekannt ist (z.B. echter Neustart)
+            if (!ClientState.playerPositions.containsKey(player.playerId)) {
+                val charType = ClientState.playerCharacterMap[player.playerId] ?: player.character
+                val startPos = charType?.let { BoardConfig.CHARACTER_START_POSITIONS[it] }
+                ClientState.playerPositions[player.playerId] =
+                    if (startPos != null) "${startPos.first},${startPos.second}" else "6,4"
+            }
+        }
+    }
     private fun onCellTapped(col: Int, row: Int) {
         if (!isMyTurn() || ClientState.isEliminated) return
 
@@ -282,7 +349,31 @@ class GameActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        bgMusic?.pause()
+        if (!isLeaving) {
+            bgDisconnectHandler.postDelayed(bgDisconnectRunnable, 5000)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
+        if (waitingMusic == null) {
+            bgMusic?.start()
+        }
+    }
+
     private fun onLeaveGame() {
+        if (isLeaving) return
+        isLeaving = true
+        bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
+        stopDisconnectService()
+        bgMusic?.stop()
+        bgMusic?.release()
+        bgMusic = null
+        stopWaitingMusic()
         // Only disconnect — the server's SessionDisconnectEvent will start the 30-second
         // pause/rejoin timer. Calling leaveLobby() before disconnect would race with
         // the session closing and could bypass the rejoin logic entirely.
@@ -296,6 +387,7 @@ class GameActivity : ComponentActivity() {
     private fun setupGameHandlers() {
         GameHandler.onRollDice = { value, newPosition ->
             runOnUiThread {
+                playSound(R.raw.roll_dice_sound)
                 Toast.makeText(this, getString(R.string.dice_result, value), Toast.LENGTH_SHORT)
                     .show()
                 hiddenWayUsed = false
@@ -322,9 +414,11 @@ class GameActivity : ComponentActivity() {
 
                         if (room != null) {
                             // Problem 3 Fix: Show dialog to enter room on door field
-                            val dialogView = layoutInflater.inflate(R.layout.dialog_enter_room, null)
+                            val dialogView =
+                                layoutInflater.inflate(R.layout.dialog_enter_room, null)
                             dialogView.findViewById<TextView>(R.id.tvTitle).text = "ENTER $room?"
-                            dialogView.findViewById<TextView>(R.id.tvMessage).text = "DO YOU WANT TO ENTER THE $room?"
+                            dialogView.findViewById<TextView>(R.id.tvMessage).text =
+                                "DO YOU WANT TO ENTER THE $room?"
 
                             val customDialog = android.app.AlertDialog.Builder(this)
                                 .setView(dialogView)
@@ -406,7 +500,14 @@ class GameActivity : ComponentActivity() {
                         GameUIHelper.showResultCards(this, rootLayout, matchingCards)
                         updateChecklist()
                     } else {
-                        Toast.makeText(this, getString(R.string.no_matching_cards), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this,
+                            getString(
+                                R.string.suggestion_made,
+                                playerDisplayName(suggesterID)
+                            ),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                     showCheatDecisionOverlay()
                 }
@@ -419,7 +520,6 @@ class GameActivity : ComponentActivity() {
                     showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
                 }
             }
-        }
 
         GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard ->
             runOnUiThread {
@@ -456,15 +556,20 @@ class GameActivity : ComponentActivity() {
                 // All players see the accusation cards
                 GameUIHelper.showResultCards(this, rootLayout, listOf(suspect, weapon, room), 3000)
                 if (correct) {
+                    bgMusic?.stop()
+                    bgMusic?.release()
+                    bgMusic = null
+                    playSound(R.raw.win_sound)
                     val msg =
                         if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(
                             R.string.player_won,
-                            "${accuserID.take(8)}..."
+                            playerDisplayName(accuserID)
                         )
                     android.os.Handler(mainLooper).postDelayed({
                         GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
                     }, 3500)
                 } else if (eliminated) {
+                    playSound(R.raw.player_eliminated_sound)
                     // Only show elimination message, differentiate by playerId
                     if (accuserID == ClientState.playerId) {
                         Toast.makeText(
@@ -475,7 +580,10 @@ class GameActivity : ComponentActivity() {
                     } else {
                         Toast.makeText(
                             this,
-                            getString(R.string.player_eliminated, "${accuserID.take(8)}..."),
+                            getString(
+                                R.string.player_eliminated,
+                                playerDisplayName(accuserID)
+                            ),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -485,10 +593,14 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onGameFinished = { winner ->
             runOnUiThread {
+                bgMusic?.stop()
+                bgMusic?.release()
+                bgMusic = null
+                playSound(R.raw.win_sound)
                 val msg =
                     if (winner == ClientState.playerId) getString(R.string.you_won) else getString(
                         R.string.player_won,
-                        "${winner.take(8)}..."
+                        playerDisplayName(winner)
                     )
                 GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
             }
@@ -497,21 +609,42 @@ class GameActivity : ComponentActivity() {
         GameHandler.onGamePaused = { disconnectedId, countdown ->
             runOnUiThread {
                 showPauseOverlay(disconnectedId, countdown)
+                bgMusic?.pause()
+                val leavePlayer = MediaPlayer.create(this, R.raw.ingame_leave_sound)
+                leavePlayer?.setOnCompletionListener {
+                    it.release()
+                    waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
+                    waitingMusic?.isLooping = true
+                    waitingMusic?.start()
+                }
+                leavePlayer?.start()
             }
         }
 
         GameHandler.onContinueGame = { rejoinedId ->
             runOnUiThread {
                 dismissPauseOverlay()
+                stopWaitingMusic()
+                playSound(R.raw.player_returned_sound)
+                bgMusic?.start()
                 Toast.makeText(this,
                     "Player rejoined! Game resumed.",
                     Toast.LENGTH_SHORT).show()
+                updateAllPlayerStatuses()
+                updateCurrentPlayerHighlight()
+                updateButtonStates()
             }
         }
 
         GameHandler.onGameAborted = { reason ->
             runOnUiThread {
-                GameUIHelper.showGameEndOverlay(this, rootLayout, getString(R.string.game_over, reason))
+                stopWaitingMusic()
+                bgMusic?.stop()
+                bgMusic?.release()
+                bgMusic = null
+                playSound(R.raw.game_over_sound)
+                val displayReason = replacePlayerIdsWithNames(reason)
+                GameUIHelper.showGameEndOverlay(this, rootLayout, getString(R.string.game_over, displayReason))
                 android.os.Handler(mainLooper).postDelayed({
                     val intent = Intent(this, LobbyActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -535,6 +668,12 @@ class GameActivity : ComponentActivity() {
     }*/
 
     override fun onDestroy() {
+        bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
+        stopDisconnectService()
+        bgMusic?.stop()
+        bgMusic?.release()
+        bgMusic = null
+        stopWaitingMusic()
         dismissPauseOverlay()
         dismissCheatOverlays()
         GameHandler.onRollDice = null
@@ -670,6 +809,27 @@ class GameActivity : ComponentActivity() {
         btn.isClickable = active
     }
 
+    private fun playerDisplayName(playerId: String): String {
+        return ClientState.playerCharacterMap[playerId]
+            ?: ClientState.players.find { it.playerId == playerId }?.character
+            ?: "Unknown Player"
+    }
+
+    private fun replacePlayerIdsWithNames(text: String): String {
+        var result = text
+
+        ClientState.players.forEach { player ->
+            val name = playerDisplayName(player.playerId)
+            result = result.replace(player.playerId, name)
+        }
+
+        ClientState.playerCharacterMap.forEach { (playerId, characterName) ->
+            result = result.replace(playerId, characterName)
+        }
+
+        return result
+    }
+
     private fun showPauseOverlay(disconnectedId: String, countdown: Int) {
         dismissPauseOverlay()
 
@@ -697,7 +857,7 @@ class GameActivity : ComponentActivity() {
             override fun run() {
                 if (remaining > 0) {
                     textView.text = getString(R.string.player_disconnected_countdown,
-                        disconnectedId.take(8), remaining)
+                        playerDisplayName(disconnectedId), remaining)
                     remaining--
                     handler.postDelayed(this, 1000)
                 }
@@ -737,7 +897,7 @@ class GameActivity : ComponentActivity() {
         }
 
         val tvInfo = TextView(this).apply {
-            text = "${suggesterID.take(8)}... suggests:\n$suspect, $room, $weapon"
+            text = "${playerDisplayName(suggesterID)} suggests:\n$suspect, $room, $weapon"
             setTextColor(android.graphics.Color.WHITE)
             textSize = 14f
             gravity = android.view.Gravity.CENTER
