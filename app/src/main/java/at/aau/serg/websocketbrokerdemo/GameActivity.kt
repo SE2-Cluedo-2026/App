@@ -435,6 +435,9 @@ class GameActivity : ComponentActivity() {
                             }
 
                             customDialog.show()
+                        } else if (movesLeft == 0) {
+                            // No room at this position and no moves left — end turn automatically
+                            MyStomp.instance.endTurn()
                         }
                     }
                 }
@@ -514,152 +517,168 @@ class GameActivity : ComponentActivity() {
             }
         }
 
-        GameHandler.onSuggestionRequest = { suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards ->
-            runOnUiThread {
-                if (suggesterID != ClientState.playerId && !ClientState.cheatUsed && !ClientState.isEliminated) {
-                    showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
+        GameHandler.onSuggestionRequest =
+            { suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards ->
+                runOnUiThread {
+                    if (suggesterID != ClientState.playerId && !ClientState.cheatUsed && !ClientState.isEliminated) {
+                        showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
+                    }
                 }
             }
 
-        GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard ->
-            runOnUiThread {
-                dismissCheatOverlays()
+            GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard ->
+                runOnUiThread {
+                    dismissCheatOverlays()
 
-                if (cheatDetected) {
-                    if (cheaters.any { it.first == ClientState.playerId }) {
-                        ClientState.cheatUsed = true
+                    if (cheatDetected) {
+                        if (cheaters.any { it.first == ClientState.playerId }) {
+                            ClientState.cheatUsed = true
+                        }
                     }
-                }
 
-                if (cheatDetected) {
-                    val allCards = cheaters.flatMap { it.second }
-                    val msg = "Cheat detected! Revealed cards: ${allCards.joinToString(", ")}"
-                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
-                    if (allCards.isNotEmpty()) {
-                        GameUIHelper.showResultCards(this, rootLayout, allCards, 5000)
+                    if (cheatDetected) {
+                        val allCards = cheaters.flatMap { it.second }
+                        val msg =
+                            "Cheat detected! Revealed cards: ${allCards.joinToString(", ")}"
+                        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                        if (allCards.isNotEmpty()) {
+                            GameUIHelper.showResultCards(this, rootLayout, allCards, 5000)
+                        }
+                    } else {
+                        val msg = if (revealedCard != null)
+                            "No cheat detected. One of your cards was revealed: $revealedCard"
+                        else
+                            "No cheat detected."
+                        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                     }
-                } else {
-                    val msg = if (revealedCard != null)
-                        "No cheat detected. One of your cards was revealed: $revealedCard"
-                    else
-                        "No cheat detected."
-                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                    updateCurrentPlayerHighlight()
+                    updateButtonStates()
+                    updateAllPlayerStatuses()
                 }
-                updateCurrentPlayerHighlight()
-                updateButtonStates()
-                updateAllPlayerStatuses()
             }
-        }
 
-        GameHandler.onAccusation = { accuserID, suspect, room, weapon, correct, eliminated ->
-            runOnUiThread {
-                // All players see the accusation cards
-                GameUIHelper.showResultCards(this, rootLayout, listOf(suspect, weapon, room), 3000)
-                if (correct) {
+            GameHandler.onAccusation =
+                { accuserID, suspect, room, weapon, correct, eliminated ->
+                    runOnUiThread {
+                        // All players see the accusation cards
+                        GameUIHelper.showResultCards(
+                            this,
+                            rootLayout,
+                            listOf(suspect, weapon, room),
+                            3000
+                        )
+                        if (correct) {
+                            bgMusic?.stop()
+                            bgMusic?.release()
+                            bgMusic = null
+                            playSound(R.raw.win_sound)
+                            val msg =
+                                if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(
+                                    R.string.player_won,
+                                    playerDisplayName(accuserID)
+                                )
+                            android.os.Handler(mainLooper).postDelayed({
+                                GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
+                            }, 3500)
+                        } else if (eliminated) {
+                            playSound(R.raw.player_eliminated_sound)
+                            // Only show elimination message, differentiate by playerId
+                            if (accuserID == ClientState.playerId) {
+                                Toast.makeText(
+                                    this,
+                                    getString(R.string.wrong_accusation),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    this,
+                                    getString(
+                                        R.string.player_eliminated,
+                                        playerDisplayName(accuserID)
+                                    ),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
+
+            GameHandler.onGameFinished = { winner ->
+                runOnUiThread {
                     bgMusic?.stop()
                     bgMusic?.release()
                     bgMusic = null
                     playSound(R.raw.win_sound)
                     val msg =
-                        if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(
+                        if (winner == ClientState.playerId) getString(R.string.you_won) else getString(
                             R.string.player_won,
-                            playerDisplayName(accuserID)
+                            playerDisplayName(winner)
                         )
-                    android.os.Handler(mainLooper).postDelayed({
-                        GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
-                    }, 3500)
-                } else if (eliminated) {
-                    playSound(R.raw.player_eliminated_sound)
-                    // Only show elimination message, differentiate by playerId
-                    if (accuserID == ClientState.playerId) {
-                        Toast.makeText(
-                            this,
-                            getString(R.string.wrong_accusation),
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else {
-                        Toast.makeText(
-                            this,
-                            getString(
-                                R.string.player_eliminated,
-                                playerDisplayName(accuserID)
-                            ),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
+                }
+            }
+
+            GameHandler.onGamePaused = { disconnectedId, countdown ->
+                runOnUiThread {
+                    showPauseOverlay(disconnectedId, countdown)
+                    bgMusic?.pause()
+                    val leavePlayer = MediaPlayer.create(this, R.raw.ingame_leave_sound)
+                    leavePlayer?.setOnCompletionListener {
+                        it.release()
+                        waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
+                        waitingMusic?.isLooping = true
+                        waitingMusic?.start()
                     }
+                    leavePlayer?.start()
                 }
             }
-        }
 
-        GameHandler.onGameFinished = { winner ->
-            runOnUiThread {
-                bgMusic?.stop()
-                bgMusic?.release()
-                bgMusic = null
-                playSound(R.raw.win_sound)
-                val msg =
-                    if (winner == ClientState.playerId) getString(R.string.you_won) else getString(
-                        R.string.player_won,
-                        playerDisplayName(winner)
+            GameHandler.onContinueGame = { rejoinedId ->
+                runOnUiThread {
+                    dismissPauseOverlay()
+                    stopWaitingMusic()
+                    playSound(R.raw.player_returned_sound)
+                    bgMusic?.start()
+                    Toast.makeText(
+                        this,
+                        "Player rejoined! Game resumed.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    updateAllPlayerStatuses()
+                    updateCurrentPlayerHighlight()
+                    updateButtonStates()
+                }
+            }
+
+            GameHandler.onGameAborted = { reason ->
+                runOnUiThread {
+                    stopWaitingMusic()
+                    bgMusic?.stop()
+                    bgMusic?.release()
+                    bgMusic = null
+                    playSound(R.raw.game_over_sound)
+                    val displayReason = replacePlayerIdsWithNames(reason)
+                    GameUIHelper.showGameEndOverlay(
+                        this,
+                        rootLayout,
+                        getString(R.string.game_over, displayReason)
                     )
-                GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
-            }
-        }
-
-        GameHandler.onGamePaused = { disconnectedId, countdown ->
-            runOnUiThread {
-                showPauseOverlay(disconnectedId, countdown)
-                bgMusic?.pause()
-                val leavePlayer = MediaPlayer.create(this, R.raw.ingame_leave_sound)
-                leavePlayer?.setOnCompletionListener {
-                    it.release()
-                    waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
-                    waitingMusic?.isLooping = true
-                    waitingMusic?.start()
+                    android.os.Handler(mainLooper).postDelayed({
+                        val intent = Intent(this, LobbyActivity::class.java)
+                        intent.flags =
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                        startActivity(intent)
+                        finish()
+                    }, 3000)
                 }
-                leavePlayer?.start()
             }
-        }
 
-        GameHandler.onContinueGame = { rejoinedId ->
-            runOnUiThread {
-                dismissPauseOverlay()
-                stopWaitingMusic()
-                playSound(R.raw.player_returned_sound)
-                bgMusic?.start()
-                Toast.makeText(this,
-                    "Player rejoined! Game resumed.",
-                    Toast.LENGTH_SHORT).show()
-                updateAllPlayerStatuses()
-                updateCurrentPlayerHighlight()
-                updateButtonStates()
+            GameHandler.onGameError = { reason ->
+                runOnUiThread {
+                    Toast.makeText(this, reason, Toast.LENGTH_SHORT).show()
+                }
             }
         }
-
-        GameHandler.onGameAborted = { reason ->
-            runOnUiThread {
-                stopWaitingMusic()
-                bgMusic?.stop()
-                bgMusic?.release()
-                bgMusic = null
-                playSound(R.raw.game_over_sound)
-                val displayReason = replacePlayerIdsWithNames(reason)
-                GameUIHelper.showGameEndOverlay(this, rootLayout, getString(R.string.game_over, displayReason))
-                android.os.Handler(mainLooper).postDelayed({
-                    val intent = Intent(this, LobbyActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                    startActivity(intent)
-                    finish()
-                }, 3000)
-            }
-        }
-
-        GameHandler.onGameError = { reason ->
-            runOnUiThread {
-                Toast.makeText(this, reason, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
 /*
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
