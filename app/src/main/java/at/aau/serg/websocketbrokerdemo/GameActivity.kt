@@ -12,6 +12,7 @@ import android.content.Intent
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
+import androidx.core.content.res.ResourcesCompat
 import at.aau.serg.websocketbrokerdemo.model.BoardColors
 import com.example.myapplication.R
 import at.aau.serg.websocketbrokerdemo.model.BoardConfig
@@ -46,6 +47,10 @@ class GameActivity : ComponentActivity() {
     private var countdownRunnable: Runnable? = null
     private var cheatWindowOverlay: View? = null
     private var cheatDecisionOverlay: View? = null
+    private var cheatWindowHandler: android.os.Handler? = null
+    private var cheatWindowRunnable: Runnable? = null
+    private var cheatDecisionHandler: android.os.Handler? = null
+    private var cheatDecisionRunnable: Runnable? = null
     private var sensorManager: android.hardware.SensorManager? = null
     private var shakeDetector: ShakeDetector? = null
 
@@ -277,11 +282,6 @@ class GameActivity : ComponentActivity() {
         }
     }
 
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        onLeaveGame()
-    }
-
     private fun onLeaveGame() {
         // Only disconnect — the server's SessionDisconnectEvent will start the 30-second
         // pause/rejoin timer. Calling leaveLobby() before disconnect would race with
@@ -374,8 +374,12 @@ class GameActivity : ComponentActivity() {
                 // Only update local room for THIS player
                 if (playerId == ClientState.playerId) {
                     currentRoomId = roomId
+                    ClientState.currentPhase = "IN_ROOM"
+                    ClientState.remainingMoves = 0
                 }
+
                 updatePlayerDot(playerId, roomId)
+                updateCurrentPlayerHighlight()
                 updateButtonStates()
                 updateAllPlayerStatuses()
             }
@@ -441,7 +445,9 @@ class GameActivity : ComponentActivity() {
                         "No cheat detected."
                     Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                 }
+                updateCurrentPlayerHighlight()
                 updateButtonStates()
+                updateAllPlayerStatuses()
             }
         }
 
@@ -530,6 +536,7 @@ class GameActivity : ComponentActivity() {
 
     override fun onDestroy() {
         dismissPauseOverlay()
+        dismissCheatOverlays()
         GameHandler.onRollDice = null
         GameHandler.onMove = null
         GameHandler.onEndTurn = null
@@ -782,25 +789,30 @@ class GameActivity : ComponentActivity() {
         cheatWindowOverlay = overlay
 
         var remaining = windowSeconds
-        val handler = android.os.Handler(mainLooper)
-        val tick = object : Runnable {
+        cheatWindowHandler = android.os.Handler(mainLooper)
+        cheatWindowRunnable = object : Runnable {
             override fun run() {
                 if (remaining > 0) {
                     tvCountdown.text = "CHEAT WINDOW: ${remaining}s"
                     remaining--
-                    handler.postDelayed(this, 1000)
+                    cheatWindowHandler?.postDelayed(this, 1000)
                 } else {
                     dismissCheatOverlays()
                 }
             }
         }
-        handler.post(tick)
+        cheatWindowHandler?.post(cheatWindowRunnable!!)
     }
 
     private fun showCheatDecisionOverlay() {
         dismissCheatOverlays()
 
-        val freckleFace = android.graphics.Typeface.createFromAsset(assets, "font/freckle_face.ttf")
+        val freckleFace = try {
+            ResourcesCompat.getFont(this, R.font.freckle_face)
+                ?: android.graphics.Typeface.DEFAULT
+        } catch (e: Exception) {
+            android.graphics.Typeface.DEFAULT
+        }
         val cluedoPink = android.graphics.Color.parseColor("#F50057")
 
         val overlay = android.widget.FrameLayout(this).apply {
@@ -824,7 +836,7 @@ class GameActivity : ComponentActivity() {
         }
 
         val tvCountdown = TextView(this).apply {
-            text = "YOU HAVE 3 SECONDS TO DECIDE..."
+            text = "YOU HAVE 5 SECONDS TO DECIDE..."
             setTextColor(android.graphics.Color.WHITE)
             textSize = 14f
             typeface = freckleFace
@@ -869,18 +881,38 @@ class GameActivity : ComponentActivity() {
         ))
         cheatDecisionOverlay = overlay
 
-        android.os.Handler(mainLooper).postDelayed({
+        cheatDecisionHandler = android.os.Handler(mainLooper)
+        cheatDecisionRunnable = Runnable {
             if (cheatDecisionOverlay != null) {
                 sendDecision(false)
             }
-        }, 3000)
+        }
+        cheatDecisionHandler?.postDelayed(cheatDecisionRunnable!!, 3000)
     }
 
     private fun dismissCheatOverlays() {
         stopShakeDetector()
-        cheatWindowOverlay?.let { rootLayout.removeView(it) }
+
+        cheatWindowRunnable?.let { cheatWindowHandler?.removeCallbacks(it) }
+        cheatWindowRunnable = null
+        cheatWindowHandler = null
+
+        cheatDecisionRunnable?.let { cheatDecisionHandler?.removeCallbacks(it) }
+        cheatDecisionRunnable = null
+        cheatDecisionHandler = null
+
+        cheatWindowOverlay?.let {
+            if (it.parent != null) {
+                rootLayout.removeView(it)
+            }
+        }
         cheatWindowOverlay = null
-        cheatDecisionOverlay?.let { rootLayout.removeView(it) }
+
+        cheatDecisionOverlay?.let {
+            if (it.parent != null) {
+                rootLayout.removeView(it)
+            }
+        }
         cheatDecisionOverlay = null
     }
 
