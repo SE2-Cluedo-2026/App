@@ -46,19 +46,43 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <!-- Grid overlay for player dots on hallway cells -->
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/gridOverlayTop"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.322" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/gridOverlayBottom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.725" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/gridOverlayLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.305" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/gridOverlayRight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.653" />
+
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/gridOverlay"
             android:layout_width="257dp"
             android:layout_height="166dp"
-            android:layout_marginStart="237dp"
-            android:layout_marginTop="132dp"
-            android:layout_marginEnd="237dp"
-            android:layout_marginBottom="113dp"
             android:background="@android:color/transparent"
-            app:layout_constraintBottom_toBottomOf="@+id/imgBoard"
-            app:layout_constraintEnd_toEndOf="@+id/roomOverlay"
-            app:layout_constraintStart_toStartOf="@+id/roomOverlay"
-            app:layout_constraintTop_toTopOf="@+id/roomOverlay" />
+            app:layout_constraintTop_toBottomOf="@id/gridOverlayTop"
+            app:layout_constraintBottom_toTopOf="@id/gridOverlayBottom"
+            app:layout_constraintStart_toEndOf="@id/gridOverlayLeft"
+            app:layout_constraintEnd_toStartOf="@id/gridOverlayRight"/>
 
         <LinearLayout
             android:id="@+id/characterPanel"
