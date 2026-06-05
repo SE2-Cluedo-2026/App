@@ -49,67 +49,78 @@ object GameUIHelper {
         return dot
     }
 
-    fun buildChecklistOverlay(
+    fun buildSuspectChecklistOverlay(context: Context, container: ViewGroup, containerW: Int, containerH: Int) {
+        buildSectionOverlay(context, container, containerW, containerH, BoardConfig.CHECKLIST_SUSPECTS)
+    }
+
+    fun buildWeaponChecklistOverlay(context: Context, container: ViewGroup, containerW: Int, containerH: Int) {
+        buildSectionOverlay(context, container, containerW, containerH, BoardConfig.CHECKLIST_WEAPONS)
+    }
+
+    fun buildRoomChecklistOverlay(context: Context, container: ViewGroup, containerW: Int, containerH: Int) {
+        buildSectionOverlay(context, container, containerW, containerH, BoardConfig.CHECKLIST_ROOMS)
+    }
+
+    private fun buildSectionOverlay(
         context: Context,
         container: ViewGroup,
         containerW: Int,
-        containerH: Int
+        containerH: Int,
+        items: List<String>
     ) {
-        container.removeAllViews()
-        val allItems =
-            BoardConfig.CHECKLIST_SUSPECTS + BoardConfig.CHECKLIST_WEAPONS + BoardConfig.CHECKLIST_ROOMS
-        val headerCount = 3
-        val totalRows = allItems.size + headerCount + 1
-        val rowH = containerH.toFloat() / (totalRows + 1)
-        val startY = rowH * 1.4f
-        var idx = 0
-        var currentY = startY
+        // ── Tune these values to adjust placement ──────────────────────────
+        val markXPercent = 0.88f         // horizontal position (0.0 = left, 1.0 = right)
 
-        for (section in listOf(
-            BoardConfig.CHECKLIST_SUSPECTS,
-            BoardConfig.CHECKLIST_WEAPONS,
-            BoardConfig.CHECKLIST_ROOMS
-        )) {
-            currentY += rowH
-            for (item in section) {
-                val markX = (containerW * 0.88f).toInt()
-                val markY = currentY.toInt()
-                if (ClientState.myCards.contains(item)) {
-                    val dot = View(context)
-                    val dotSize = dpToPx(context, 8)
-                    val lp = ConstraintLayout.LayoutParams(dotSize, dotSize).apply {
-                        startToStart = ConstraintSet.PARENT_ID
-                        topToTop = ConstraintSet.PARENT_ID
-                        leftMargin = markX - dotSize / 2
-                        topMargin = markY + (rowH / 2).toInt() - dotSize / 2
-                    }
-                    dot.layoutParams = lp
-                    val shape = GradientDrawable()
-                    shape.shape = GradientDrawable.OVAL
-                    shape.setColor(colorNum.toColorInt())
-                    dot.background = shape
-                    container.addView(dot)
+        val dotSizeDp = 8                // size of the "my card" dot in dp
+        val dotVerticalFactor = 0.5f     // 0.5 = center of row; lower = higher up
+        val dotHorizontalOffsetDp = 0    // extra horizontal nudge for dot (+ = right)
+
+        val checkTextSizeSp = 10f        // font size of checkmark symbol
+        val checkVerticalFactor = 0f   // 0.5 = center of row; lower = higher up
+        val checkVerticalOffsetDp = 0    // extra vertical nudge for checkmark (+ = down)
+        val checkHorizontalOffsetDp = -6 // extra horizontal nudge for checkmark (+ = right)
+        // ───────────────────────────────────────────────────────────────────
+
+        container.removeAllViews()
+        val rowH = containerH.toFloat() / items.size
+        var currentY = 0f
+
+        for (item in items) {
+            val markX = (containerW * markXPercent).toInt()
+            if (ClientState.myCards.contains(item)) {
+                val dot = View(context)
+                val dotSize = dpToPx(context, dotSizeDp)
+                val lp = ConstraintLayout.LayoutParams(dotSize, dotSize).apply {
+                    startToStart = ConstraintSet.PARENT_ID
+                    topToTop = ConstraintSet.PARENT_ID
+                    leftMargin = markX - dotSize / 2 + dpToPx(context, dotHorizontalOffsetDp)
+                    topMargin = (currentY + rowH * dotVerticalFactor).toInt() - dotSize / 2
                 }
-                if (ClientState.seenCards.contains(item) && !ClientState.myCards.contains(item)) {
-                    val check = TextView(context)
-                    check.text = context.getString(R.string.checkmark)
-                    check.setTextColor(colorNum.toColorInt())
-                    check.textSize = 10f
-                    val lp = ConstraintLayout.LayoutParams(
-                        ConstraintLayout.LayoutParams.WRAP_CONTENT,
-                        ConstraintLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        startToStart = ConstraintSet.PARENT_ID
-                        topToTop = ConstraintSet.PARENT_ID
-                        leftMargin = markX - dpToPx(context, 6)
-                        topMargin = markY + (rowH / 2).toInt() + dpToPx(context, 2)
-                    }
-                    check.layoutParams = lp
-                    container.addView(check)
-                }
-                currentY += rowH
-                idx++
+                dot.layoutParams = lp
+                val shape = GradientDrawable()
+                shape.shape = GradientDrawable.OVAL
+                shape.setColor(colorNum.toColorInt())
+                dot.background = shape
+                container.addView(dot)
             }
+            if (ClientState.seenCards.contains(item) && !ClientState.myCards.contains(item)) {
+                val check = TextView(context)
+                check.text = context.getString(R.string.checkmark)
+                check.setTextColor(colorNum.toColorInt())
+                check.textSize = checkTextSizeSp
+                val lp = ConstraintLayout.LayoutParams(
+                    ConstraintLayout.LayoutParams.WRAP_CONTENT,
+                    ConstraintLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    startToStart = ConstraintSet.PARENT_ID
+                    topToTop = ConstraintSet.PARENT_ID
+                    leftMargin = markX + dpToPx(context, checkHorizontalOffsetDp)
+                    topMargin = (currentY + rowH * checkVerticalFactor).toInt() + dpToPx(context, checkVerticalOffsetDp)
+                }
+                check.layoutParams = lp
+                container.addView(check)
+            }
+            currentY += rowH
         }
     }
 

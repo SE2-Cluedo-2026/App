@@ -27,7 +27,9 @@ class GameActivity : ComponentActivity() {
     private lateinit var boardImage: ImageView
     private lateinit var gridOverlay: ViewGroup
 
-    private lateinit var checklistOverlay: ViewGroup
+    private lateinit var suspectChecklistOverlay: ViewGroup
+    private lateinit var weaponChecklistOverlay: ViewGroup
+    private lateinit var roomChecklistOverlay: ViewGroup
     private lateinit var characterPanel: android.widget.LinearLayout
 
     private lateinit var dialogOverlay: ViewGroup
@@ -111,7 +113,9 @@ class GameActivity : ComponentActivity() {
         rootLayout = findViewById(R.id.rootGameLayout)
         boardImage = findViewById(R.id.imgBoard)
         gridOverlay = findViewById(R.id.gridOverlay)
-        checklistOverlay = findViewById(R.id.checklistOverlay)
+        suspectChecklistOverlay = findViewById(R.id.suspectChecklistOverlay)
+        weaponChecklistOverlay = findViewById(R.id.weaponChecklistOverlay)
+        roomChecklistOverlay = findViewById(R.id.roomChecklistOverlay)
         characterPanel = findViewById(R.id.characterPanel)
 
         dialogOverlay = findViewById(R.id.dialogOverlay)
@@ -782,10 +786,22 @@ class GameActivity : ComponentActivity() {
     }
 
     private fun updateChecklist() {
-        checklistOverlay.post {
-            GameUIHelper.buildChecklistOverlay(
-                this, checklistOverlay,
-                checklistOverlay.width, checklistOverlay.height
+        suspectChecklistOverlay.post {
+            GameUIHelper.buildSuspectChecklistOverlay(
+                this, suspectChecklistOverlay,
+                suspectChecklistOverlay.width, suspectChecklistOverlay.height
+            )
+        }
+        weaponChecklistOverlay.post {
+            GameUIHelper.buildWeaponChecklistOverlay(
+                this, weaponChecklistOverlay,
+                weaponChecklistOverlay.width, weaponChecklistOverlay.height
+            )
+        }
+        roomChecklistOverlay.post {
+            GameUIHelper.buildRoomChecklistOverlay(
+                this, roomChecklistOverlay,
+                roomChecklistOverlay.width, roomChecklistOverlay.height
             )
         }
     }
