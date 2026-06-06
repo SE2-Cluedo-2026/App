@@ -43,7 +43,7 @@ class GameActivity : ComponentActivity() {
     private lateinit var btnSuggest: Button
     private lateinit var btnAccuse: Button
     private lateinit var btnLeave: Button
-
+    private lateinit var actionLogContainer: android.widget.LinearLayout
     private val playerStatusViews = mutableMapOf<String, TextView>()
     private var pauseOverlay: View? = null
     private var countdownHandler: android.os.Handler? = null
@@ -61,6 +61,7 @@ class GameActivity : ComponentActivity() {
     private var waitingMusic: MediaPlayer? = null
 
     private var isLeaving = false
+    private val actionMessages = mutableListOf<String>()
     private val bgDisconnectHandler = Handler(Looper.getMainLooper())
     private val bgDisconnectRunnable = Runnable {
         if (!isLeaving) {
@@ -95,6 +96,31 @@ class GameActivity : ComponentActivity() {
         waitingMusic?.release()
         waitingMusic = null
     }
+    private fun addActionMessage(message: String) {
+        val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+            .format(java.util.Date())
+
+        actionMessages.add(0, "[$time] $message")
+
+        if (actionMessages.size > 5) {
+            actionMessages.removeAt(actionMessages.lastIndex)
+        }
+
+        actionLogContainer.removeAllViews()
+
+        for (msg in actionMessages) {
+            val tv = TextView(this).apply {
+                text = msg
+                setTextColor(Color.BLACK)
+                textSize = 9f
+                typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+                setSingleLine(true)
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(0, 1, 0, 1)
+            }
+            actionLogContainer.addView(tv)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -115,6 +141,7 @@ class GameActivity : ComponentActivity() {
         characterPanel = findViewById(R.id.characterPanel)
 
         dialogOverlay = findViewById(R.id.dialogOverlay)
+        actionLogContainer = findViewById(R.id.actionLogContainer)
 
         setupGameHandlers()
         initializePlayerPositions()
@@ -385,14 +412,15 @@ class GameActivity : ComponentActivity() {
     }
 
     private fun setupGameHandlers() {
-        GameHandler.onRollDice = { value, newPosition ->
+        GameHandler.onRollDice = { playerId, value, newPosition ->
             runOnUiThread {
+                addActionMessage("${playerDisplayName(playerId)} rolled a $value")
                 playSound(R.raw.roll_dice_sound)
                 Toast.makeText(this, getString(R.string.dice_result, value), Toast.LENGTH_SHORT)
                     .show()
                 hiddenWayUsed = false
                 if (newPosition != null) {
-                    updatePlayerDot(ClientState.playerId, newPosition)
+                    updatePlayerDot(playerId, newPosition)
                 }
                 updateButtonStates()
                 updateAllPlayerStatuses()
@@ -468,6 +496,7 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onEnterRoom = { playerId, roomId ->
             runOnUiThread {
+                addActionMessage("${playerDisplayName(playerId)} entered $roomId")
                 // Only update local room for THIS player
                 if (playerId == ClientState.playerId) {
                     currentRoomId = roomId
@@ -484,6 +513,7 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onHiddenWay = { playerId, targetRoom ->
             runOnUiThread {
+                addActionMessage("${playerDisplayName(playerId)} used a hidden passage")
                 // Only update local state for THIS player
                 if (playerId == ClientState.playerId) {
                     currentRoomId = targetRoom
@@ -520,6 +550,8 @@ class GameActivity : ComponentActivity() {
         GameHandler.onSuggestionRequest =
             { suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards ->
                 runOnUiThread {
+                    addActionMessage(
+                        "${playerDisplayName(suggesterID)} made a suggestion")
                     if (suggesterID != ClientState.playerId && !ClientState.cheatUsed && !ClientState.isEliminated) {
                         showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
                     }
@@ -560,6 +592,8 @@ class GameActivity : ComponentActivity() {
             GameHandler.onAccusation =
                 { accuserID, suspect, room, weapon, correct, eliminated ->
                     runOnUiThread {
+                        addActionMessage(
+                            "${playerDisplayName(accuserID)} made an accusation")
                         // All players see the accusation cards
                         GameUIHelper.showResultCards(
                             this,

@@ -70,6 +70,17 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             android:padding="4dp" />
+        <LinearLayout
+            android:id="@+id/actionLogContainer"
+            android:layout_width="230dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:background="@android:color/transparent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/characterPanel"
+            android:layout_marginStart="5dp"
+            android:layout_marginBottom="10dp"/>
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/checklistOverlay"
