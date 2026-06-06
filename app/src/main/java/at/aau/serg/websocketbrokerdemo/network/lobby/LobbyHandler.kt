@@ -41,6 +41,9 @@ object LobbyHandler {
             when (type) {
                 LobbyMessageType.NEW_PLAYER_JOINED -> {
                     val dto = parseNewPlayerJoined(payload)
+                    if (dto.playerId == ClientState.playerId) {
+                        resetClientState()
+                    }
                     ClientState.players = dto.existingPlayers
                     ClientState.availableCharacters = dto.availableCharacters
 
@@ -52,6 +55,9 @@ object LobbyHandler {
 
                 LobbyMessageType.PLAYER_REJOINED -> {
                     val dto = parsePlayerRejoined(payload)
+                    if (dto.playerId == ClientState.playerId) {
+                        resetClientState()
+                    }
                     ClientState.gameStatus = payload.optString("gameStatus", "LOBBY")
                     ClientState.players = dto.existingPlayers
                     if (dto.availableCharacters.isNotEmpty()) {
@@ -248,6 +254,24 @@ object LobbyHandler {
                 position = p.optString("position").takeIf { it.isNotEmpty() }
             )
         }
+    }
+
+    private fun resetClientState() {
+        ClientState.gameStatus = "LOBBY"
+        ClientState.availableCharacters = emptyList()
+        ClientState.myCards = emptyList()
+        ClientState.myCharacter = null
+        ClientState.seenCards.clear()
+        ClientState.players = emptyList()
+        ClientState.currentPlayerId = ""
+        ClientState.remainingMoves = 0
+        ClientState.playerPositions.clear()
+        ClientState.currentPhase = ""
+        ClientState.currentPlayerIndex = 0
+        ClientState.isEliminated = false
+        ClientState.eliminatedPlayers.clear()
+        ClientState.playerCharacterMap.clear()
+        ClientState.cheatUsed = false
     }
 
     private fun parseSetReady(payload: JSONObject): SetreadyDTO {
