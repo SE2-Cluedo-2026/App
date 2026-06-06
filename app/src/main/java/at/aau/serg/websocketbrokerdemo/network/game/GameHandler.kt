@@ -8,7 +8,7 @@ import org.json.JSONObject
 
 class GameHandler {
     companion object {
-        var onRollDice: ((Int, String?) -> Unit)? = null
+        var onRollDice: ((String, Int, String?) -> Unit)? = null
         var onMove: ((String, String, Int) -> Unit)? = null
         var onEndTurn: ((Int) -> Unit)? = null
         var onEnterRoom: ((String, String) -> Unit)? = null
@@ -39,15 +39,15 @@ class GameHandler {
                         if (payload == null)
                             return
                         val value = payload.getInt("value")
+                        val playerId = payload.optString("playerId", ClientState.playerId)
                         ClientState.remainingMoves = value
-
                         var newPos: String? = null
                         if (payload.has("newPosition")) {
                             newPos = payload.getString("newPosition")
                             val playerId = payload.optString("playerId", ClientState.playerId)
                             ClientState.playerPositions[playerId] = newPos
                         }
-                        onRollDice?.invoke(value, newPos)
+                        onRollDice?.invoke(playerId, value, newPos)
                     }
 
                     GameMessageType.MOVE.name -> {
