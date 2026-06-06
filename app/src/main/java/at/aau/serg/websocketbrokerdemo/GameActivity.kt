@@ -559,6 +559,7 @@ class GameActivity : ComponentActivity() {
                             "No cheat detected."
                         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                     }
+                    updateChecklist()
                     updateCurrentPlayerHighlight()
                     updateButtonStates()
                     updateAllPlayerStatuses()
