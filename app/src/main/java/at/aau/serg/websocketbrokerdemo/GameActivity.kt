@@ -27,7 +27,9 @@ class GameActivity : ComponentActivity() {
     private lateinit var boardImage: ImageView
     private lateinit var gridOverlay: ViewGroup
 
-    private lateinit var checklistOverlay: ViewGroup
+    private lateinit var suspectChecklistOverlay: ViewGroup
+    private lateinit var weaponChecklistOverlay: ViewGroup
+    private lateinit var roomChecklistOverlay: ViewGroup
     private lateinit var characterPanel: android.widget.LinearLayout
 
     private lateinit var dialogOverlay: ViewGroup
@@ -111,7 +113,9 @@ class GameActivity : ComponentActivity() {
         rootLayout = findViewById(R.id.rootGameLayout)
         boardImage = findViewById(R.id.imgBoard)
         gridOverlay = findViewById(R.id.gridOverlay)
-        checklistOverlay = findViewById(R.id.checklistOverlay)
+        suspectChecklistOverlay = findViewById(R.id.suspectChecklistOverlay)
+        weaponChecklistOverlay = findViewById(R.id.weaponChecklistOverlay)
+        roomChecklistOverlay = findViewById(R.id.roomChecklistOverlay)
         characterPanel = findViewById(R.id.characterPanel)
 
         dialogOverlay = findViewById(R.id.dialogOverlay)
@@ -167,21 +171,25 @@ class GameActivity : ComponentActivity() {
         val gridW = gridOverlay.width
         val gridH = gridOverlay.height
 
-        val cellW = gridW / BoardConfig.COLS
-        val cellH = gridH / BoardConfig.ROWS
+        val cellWf = gridW.toFloat() / BoardConfig.COLS
+        val cellHf = gridH.toFloat() / BoardConfig.ROWS
 
         gridOverlay.removeAllViews()
 
         for (row in 0 until BoardConfig.ROWS) {
             for (col in 0 until BoardConfig.COLS) {
                 val cell = View(this)
+                val cellLeft = (col * cellWf).toInt()
+                val cellTop = (row * cellHf).toInt()
+                val cellRight = ((col + 1) * cellWf).toInt()
+                val cellBottom = ((row + 1) * cellHf).toInt()
                 val clp =
-                    androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(cellW, cellH)
+                    androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(cellRight - cellLeft, cellBottom - cellTop)
                         .apply {
                             startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
                             topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                            leftMargin = col * cellW
-                            topMargin = row * cellH
+                            leftMargin = cellLeft
+                            topMargin = cellTop
                         }
                 cell.layoutParams = clp
                 cell.setBackgroundColor(Color.TRANSPARENT)
@@ -718,8 +726,8 @@ class GameActivity : ComponentActivity() {
         val gridH = gridOverlay.height
         if (gridW == 0 || gridH == 0) return
 
-        val cellW = gridW / BoardConfig.COLS
-        val cellH = gridH / BoardConfig.ROWS
+        val cellW = gridW.toFloat() / BoardConfig.COLS
+        val cellH = gridH.toFloat() / BoardConfig.ROWS
 
         // Remove old dot from wherever it is
         playerDots[playerId]?.let {
@@ -729,8 +737,11 @@ class GameActivity : ComponentActivity() {
         val charType = ClientState.playerCharacterMap[playerId]
             ?: ClientState.players.find { it.playerId == playerId }?.character
         val color = BoardColors.CHARACTER_COLORS[charType] ?: Color.GRAY
-        val dot = GameUIHelper.createPlayerDot(this, color)
-        val dotSize = GameUIHelper.dpToPx(this, 16)
+        val dotSize = (cellW * 0.75f).toInt().coerceIn(
+            GameUIHelper.dpToPx(this, 8),
+            GameUIHelper.dpToPx(this, 20)
+        )
+        val dot = GameUIHelper.createPlayerDotPx(this, color, dotSize)
 
         if (position.contains(",")) {
             val parts = position.split(",")
@@ -741,8 +752,8 @@ class GameActivity : ComponentActivity() {
                     .apply {
                         startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
                         topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                        leftMargin = col * cellW + (cellW - dotSize) / 2
-                        topMargin = row * cellH + (cellH - dotSize) / 2
+                        leftMargin = (col * cellW + (cellW - dotSize) / 2).toInt()
+                        topMargin = (row * cellH + (cellH - dotSize) / 2).toInt()
                     }
             dot.layoutParams = dlp
             gridOverlay.addView(dot)
@@ -782,10 +793,22 @@ class GameActivity : ComponentActivity() {
     }
 
     private fun updateChecklist() {
-        checklistOverlay.post {
-            GameUIHelper.buildChecklistOverlay(
-                this, checklistOverlay,
-                checklistOverlay.width, checklistOverlay.height
+        suspectChecklistOverlay.post {
+            GameUIHelper.buildSuspectChecklistOverlay(
+                this, suspectChecklistOverlay,
+                suspectChecklistOverlay.width, suspectChecklistOverlay.height
+            )
+        }
+        weaponChecklistOverlay.post {
+            GameUIHelper.buildWeaponChecklistOverlay(
+                this, weaponChecklistOverlay,
+                weaponChecklistOverlay.width, weaponChecklistOverlay.height
+            )
+        }
+        roomChecklistOverlay.post {
+            GameUIHelper.buildRoomChecklistOverlay(
+                this, roomChecklistOverlay,
+                roomChecklistOverlay.width, roomChecklistOverlay.height
             )
         }
     }
