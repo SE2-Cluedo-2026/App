@@ -34,10 +34,12 @@ object GameUIHelper {
         ).toInt()
     }
 
-    fun createPlayerDot(context: Context, color: Int, sizeDp: Int = 16): View {
+    fun createPlayerDot(context: Context, color: Int, sizeDp: Int = 16): View =
+        createPlayerDotPx(context, color, dpToPx(context, sizeDp))
+
+    fun createPlayerDotPx(context: Context, color: Int, sizePx: Int): View {
         val dot = View(context)
-        val size = dpToPx(context, sizeDp)
-        dot.layoutParams = ConstraintLayout.LayoutParams(size, size).apply {
+        dot.layoutParams = ConstraintLayout.LayoutParams(sizePx, sizePx).apply {
             startToStart = ConstraintSet.PARENT_ID
             topToTop = ConstraintSet.PARENT_ID
         }
@@ -76,7 +78,7 @@ object GameUIHelper {
         val dotHorizontalOffsetDp = 0    // extra horizontal nudge for dot (+ = right)
 
         val checkTextSizeSp = 10f        // font size of checkmark symbol
-        val checkVerticalFactor = 0f   // 0.5 = center of row; lower = higher up
+        val checkVerticalFactor = 0.1f   // 0.5 = center of row; lower = higher up
         val checkVerticalOffsetDp = 0    // extra vertical nudge for checkmark (+ = down)
         val checkHorizontalOffsetDp = -6 // extra horizontal nudge for checkmark (+ = right)
         // ───────────────────────────────────────────────────────────────────
