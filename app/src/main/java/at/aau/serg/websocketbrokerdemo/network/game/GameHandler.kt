@@ -264,7 +264,11 @@ class GameHandler {
 
                                         if (cardsArr != null) {
                                             for (j in 0 until cardsArr.length()) {
-                                                cards.add(cardsArr.getJSONObject(j).optString("name", ""))
+                                                val cardName = cardsArr.getJSONObject(j).optString("name", "")
+                                                cards.add(cardName)
+                                                if (cardName.isNotEmpty()) {
+                                                    ClientState.seenCards.add(cardName)
+                                                }
                                             }
                                         }
 
