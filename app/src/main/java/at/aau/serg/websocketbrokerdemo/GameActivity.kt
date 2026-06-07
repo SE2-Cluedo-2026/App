@@ -725,6 +725,7 @@ class GameActivity : ComponentActivity() {
                     Toast.makeText(this, userMessage, Toast.LENGTH_LONG).show()
             }
         }
+    }
 /*
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
