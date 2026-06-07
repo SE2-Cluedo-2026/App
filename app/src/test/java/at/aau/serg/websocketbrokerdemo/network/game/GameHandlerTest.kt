@@ -52,8 +52,8 @@ class GameHandlerTest {
     @Test
     fun `ROLL_DICE calls callback`() = handle {
         var result = 0
-        GameHandler.onRollDice = {
-            value, _ -> result = value
+        GameHandler.onRollDice = { _, value, _ ->
+            result = value
         }
         GameHandler.handle("""{ "type": "ROLL_DICE", "payload": { "value": 5 } }""")
         Assertions.assertEquals(5, result)
@@ -62,8 +62,8 @@ class GameHandlerTest {
     @Test
     fun `ROLL_DICE with newPosition updates state`() = handle {
         var pos: String? = null
-        GameHandler.onRollDice = {
-                _, newPosition -> pos = newPosition
+        GameHandler.onRollDice = { _, _, newPosition ->
+            pos = newPosition
         }
         GameHandler.handle("""{ "type": "ROLL_DICE", "payload": { "value": 3, "newPosition": "5,5", "playerId": "p1" } }""")
         Assertions.assertEquals("5,5", pos)
@@ -85,8 +85,8 @@ class GameHandlerTest {
     @Test
     fun `ROLL_DICE with null payload does not crash`() = handle {
         var called = false
-        GameHandler.onRollDice = {
-            _, _ -> called = true
+        GameHandler.onRollDice = { _, _, _ ->
+            called = true
         }
         GameHandler.handle("""{ "type": "ROLL_DICE" }""")
         Assertions.assertFalse(called)
@@ -503,5 +503,14 @@ class GameHandlerTest {
         GameHandler.onGameError = { r -> reason = r }
         GameHandler.handle("""{ "type": "ROLL_DICE_ERROR" }""")
         Assertions.assertEquals("An error occurred", reason)
+    }
+    @Test
+    fun `ROLL_DICE passes playerId to callback`() = handle {
+        var playerId = ""
+        GameHandler.onRollDice = { id, _, _ ->
+            playerId = id
+        }
+        GameHandler.handle("""{ "type": "ROLL_DICE", "payload": { "playerId": "p1", "value":5 } }""")
+        Assertions.assertEquals("p1", playerId)
     }
 }
