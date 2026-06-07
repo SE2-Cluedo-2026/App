@@ -566,7 +566,7 @@ class GameActivity : ComponentActivity() {
                 }
             }
 
-            GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard ->
+            GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard, cheatPressed ->
                 runOnUiThread {
                     dismissCheatOverlays()
 
@@ -584,9 +584,9 @@ class GameActivity : ComponentActivity() {
                         if (allCards.isNotEmpty()) {
                             GameUIHelper.showResultCards(this, rootLayout, allCards, 5000)
                         }
-                    } else {
+                    } else if (cheatPressed) {
                         val msg = if (revealedCard != null)
-                            "No cheat detected. One of your cards was revealed: $revealedCard"
+                            "Suggester revealed: $revealedCard"
                         else
                             "No cheat detected."
                         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()

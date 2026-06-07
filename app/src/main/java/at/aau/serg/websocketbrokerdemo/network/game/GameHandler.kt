@@ -16,7 +16,7 @@ class GameHandler {
         var onAccusation: ((String, String, String, String, Boolean, Boolean) -> Unit)? = null
         var onSuggestionResult: ((String, String, String, String, List<String>) -> Unit)? = null
         var onSuggestionRequest: ((String, String, String, String, Int, List<String>) -> Unit)? = null
-        var onCheatResult: ((Boolean, List<Pair<String, List<String>>>, String?) -> Unit)? = null
+        var onCheatResult: ((Boolean, List<Pair<String, List<String>>>, String?, Boolean) -> Unit)? = null
         var onGameFinished: ((String) -> Unit)? = null
         var onGameAborted: ((String) -> Unit)? = null
         var onGamePaused: ((String, Int) -> Unit)? = null
@@ -239,6 +239,7 @@ class GameHandler {
                         }
 
                         val cheatDetected = payload.optBoolean("cheatDetected", false)
+                        val cheatPressed = payload.optBoolean("cheatPressed", false)
                         val suggesterID = payload.optString("suggesterID", "")
                         val targetPlayerId = payload.optString("targetPlayerId", suggesterID)
                         val cheatersArray = payload.optJSONArray("cheaters")
@@ -278,19 +279,19 @@ class GameHandler {
                                     }
                                 }
 
-                                onCheatResult?.invoke(true, cheaters, null)
+                                onCheatResult?.invoke(true, cheaters, null, cheatPressed)
                             }
                         } else {
                             val revealedCardName = payload.optJSONObject("revealedCard")?.optString("name")
 
                             if (ClientState.playerId == suggesterID) {
-                                onCheatResult?.invoke(false, emptyList(), null)
+                                onCheatResult?.invoke(false, emptyList(), null, cheatPressed)
                             } else {
                                 if (!revealedCardName.isNullOrEmpty()) {
                                     ClientState.seenCards.add(revealedCardName)
                                 }
 
-                                onCheatResult?.invoke(false, emptyList(), revealedCardName)
+                                onCheatResult?.invoke(false, emptyList(), revealedCardName, cheatPressed)
                             }
                         }
                     }
