@@ -134,6 +134,7 @@ class LobbyActivity : ComponentActivity() {
         }
         updateMyCharacterImage(imgMyCharacter)
         updateOtherPlayers(ClientState.players, otherPlayerViews, otherReadyChecks)
+        updateLobbyImage()
 
         btnNext.setOnClickListener {
             if (availableCharacters.isEmpty()) return@setOnClickListener
@@ -196,6 +197,7 @@ class LobbyActivity : ComponentActivity() {
 
                 updateMyCharacterImage(imgMyCharacter)
                 updateOtherPlayers(dto.existingPlayers, otherPlayerViews, otherReadyChecks)
+                updateLobbyImage()
             }
 
 
@@ -213,6 +215,7 @@ class LobbyActivity : ComponentActivity() {
 
                 updateMyCharacterImage(imgMyCharacter)
                 updateOtherPlayers(dto.existingPlayers, otherPlayerViews, otherReadyChecks)
+                updateLobbyImage()
             }
         }
 
@@ -232,6 +235,7 @@ class LobbyActivity : ComponentActivity() {
                 val updated = ClientState.players.filter { it.playerId != playerId }
                 ClientState.players = updated
                 updateOtherPlayers(updated, otherPlayerViews, otherReadyChecks)
+                updateLobbyImage()
             }
         }
 
@@ -326,6 +330,14 @@ class LobbyActivity : ComponentActivity() {
         imgView.setImageResource(
             card?.imageResId ?: android.R.drawable.ic_menu_help
         )
+    }
+
+    private fun updateLobbyImage() {
+        val players = ClientState.players
+        val allReady = players.isNotEmpty() && players.all { it.ready }
+        val enoughPlayers = players.size >= 2
+        val res = if (allReady && enoughPlayers) R.drawable.lobby else R.drawable.lobby2
+        findViewById<ImageView>(R.id.imageView).setImageResource(res)
     }
 
     private fun updateOtherPlayers(
