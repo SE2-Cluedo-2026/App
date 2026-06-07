@@ -715,8 +715,14 @@ class GameActivity : ComponentActivity() {
 
             GameHandler.onGameError = { reason ->
                 runOnUiThread {
-                    Toast.makeText(this, reason, Toast.LENGTH_SHORT).show()
-                }
+                    val userMessage = when {
+                        reason.contains("not your turn", ignoreCase = true) -> "It's not your turn."
+                        reason.contains("not in roll phase", ignoreCase = true) -> "You need to roll the dice first."
+                        reason.contains("not running", ignoreCase = true) -> "The game has not started yet."
+                        reason.contains("not found", ignoreCase = true) -> "Player not found on the server."
+                        else -> "Game error: $reason"
+                    }
+                    Toast.makeText(this, userMessage, Toast.LENGTH_LONG).show()
             }
         }
 /*

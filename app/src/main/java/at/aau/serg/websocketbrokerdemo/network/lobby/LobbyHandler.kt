@@ -209,10 +209,12 @@ object LobbyHandler {
     }
 
     private fun parseNewPlayerJoined(payload: JSONObject): NewPlayerJoinedPayload {
-        val characters = (0 until payload.getJSONArray("availableCharacters").length())
-            .map { payload.getJSONArray("availableCharacters").getString(it) }
+        val availArr = payload.optJSONArray("availableCharacters")
+        val characters = if (availArr != null)
+            (0 until availArr.length()).map { availArr.optString(it, "") }.filter { it.isNotEmpty() }
+        else emptyList()
         return NewPlayerJoinedPayload(
-            playerId = payload.getString("playerId"),
+            playerId = payload.optString("playerId", ""),
             availableCharacters = characters,
             existingPlayers = parsePlayers(payload)
         )
@@ -275,13 +277,15 @@ object LobbyHandler {
     }
 
     private fun parseSetReady(payload: JSONObject): SetreadyDTO {
-        val characters = (0 until payload.getJSONArray("availableCharacters").length())
-            .map { payload.getJSONArray("availableCharacters").getString(it) }
+        val availArr = payload.optJSONArray("availableCharacters")
+        val characters = if (availArr != null)
+            (0 until availArr.length()).map { availArr.optString(it, "") }.filter { it.isNotEmpty() }
+        else emptyList()
 
         return SetreadyDTO(
-            playerId = payload.getString("playerId"),
-            characterType = payload.getString("characterType"),
-            ready = payload.getBoolean("ready"),
+            playerId = payload.optString("playerId", ""),
+            characterType = payload.optString("characterType", ""),
+            ready = payload.optBoolean("ready", false),
             availableCharacters = characters,
             existingPlayers = parsePlayers(payload)
         )

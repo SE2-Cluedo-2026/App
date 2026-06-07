@@ -70,6 +70,9 @@ class MyStomp(val callbacks: Callbacks) {
                         }
                     } catch (e: Exception) {
                         Log.e("MyStomp", "Lobby connection lost", e)
+                        Handler(Looper.getMainLooper()).post {
+                            callbacks.onConnectionLost(e.message ?: "Connection lost")
+                        }
                     }
                 }
 
@@ -82,6 +85,9 @@ class MyStomp(val callbacks: Callbacks) {
                         }
                     } catch (e: Exception) {
                         Log.e("MyStomp", "Game connection lost", e)
+                        Handler(Looper.getMainLooper()).post {
+                            callbacks.onConnectionLost(e.message ?: "Game connection lost")
+                        }
                     }
                 }
                 callback("connected")
@@ -96,7 +102,9 @@ class MyStomp(val callbacks: Callbacks) {
 
             } catch (e: Exception) {
                 Log.e("MyStomp", "Connection failed", e)
-                callback(connectErr)
+                Handler(Looper.getMainLooper()).post {
+                    callbacks.onConnectionFailed(e.message ?: "Connection failed")
+                }
             }
         }
 
