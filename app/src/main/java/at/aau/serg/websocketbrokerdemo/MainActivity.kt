@@ -83,9 +83,38 @@ class MainActivity : ComponentActivity(), Callbacks {
 
     override fun onResponse(res: String) {
         Log.d("MainActivity", "Response: $res")
+        if (res.startsWith("Error:")) {
+            runOnUiThread {
+                findViewById<android.widget.FrameLayout>(R.id.loadingOverlay).visibility =
+                    android.view.View.GONE
+                android.widget.Toast.makeText(this, res, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     override fun onConnected() {
         // Handled via LobbyHandler.onLobbyJoined callback
+    }
+
+    override fun onConnectionFailed(reason: String) {
+        runOnUiThread {
+            findViewById<android.widget.FrameLayout>(R.id.loadingOverlay).visibility =
+                android.view.View.GONE
+            android.widget.Toast.makeText(
+                this,
+                "Could not connect to server: $reason",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    override fun onConnectionLost(reason: String) {
+        runOnUiThread {
+            android.widget.Toast.makeText(
+                this,
+                "Connection lost: $reason",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
     }
 }
