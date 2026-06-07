@@ -574,9 +574,6 @@ class GameActivity : ComponentActivity() {
                         if (cheaters.any { it.first == ClientState.playerId }) {
                             ClientState.cheatUsed = true
                         }
-                    }
-
-                    if (cheatDetected) {
                         val allCards = cheaters.flatMap { it.second }
                         val msg =
                             "Cheat detected! Revealed cards: ${allCards.joinToString(", ")}"
