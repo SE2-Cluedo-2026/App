@@ -113,7 +113,7 @@ class GameActivity : ComponentActivity() {
         for (msg in actionMessages) {
             val tv = TextView(this).apply {
                 text = msg
-                setTextColor(Color.BLACK)
+                setTextColor(getColor(R.color.cluedo_pink))
                 textSize = 9f
                 typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
                 setSingleLine(true)
@@ -422,7 +422,7 @@ class GameActivity : ComponentActivity() {
     private fun setupGameHandlers() {
         GameHandler.onRollDice = { playerId, value, newPosition ->
             runOnUiThread {
-                addActionMessage("${playerDisplayName(playerId)} rolled a $value")
+                addActionMessage("🎲 ${playerDisplayName(playerId)} rolled a $value")
                 playSound(R.raw.roll_dice_sound)
                 Toast.makeText(this, getString(R.string.dice_result, value), Toast.LENGTH_SHORT)
                     .show()
@@ -504,7 +504,7 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onEnterRoom = { playerId, roomId ->
             runOnUiThread {
-                addActionMessage("${playerDisplayName(playerId)} entered $roomId")
+                addActionMessage("🚪 ${playerDisplayName(playerId)} entered $roomId")
                 // Only update local room for THIS player
                 if (playerId == ClientState.playerId) {
                     currentRoomId = roomId
@@ -559,7 +559,7 @@ class GameActivity : ComponentActivity() {
             { suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards ->
                 runOnUiThread {
                     addActionMessage(
-                        "${playerDisplayName(suggesterID)} made a suggestion")
+                        "💡 ${playerDisplayName(suggesterID)} made a suggestion")
                     if (suggesterID != ClientState.playerId && !ClientState.cheatUsed && !ClientState.isEliminated) {
                         showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
                     }
@@ -599,7 +599,7 @@ class GameActivity : ComponentActivity() {
                 { accuserID, suspect, room, weapon, correct, eliminated ->
                     runOnUiThread {
                         addActionMessage(
-                            "${playerDisplayName(accuserID)} made an accusation")
+                            "🔎 ${playerDisplayName(accuserID)} made an accusation")
                         // All players see the accusation cards
                         GameUIHelper.showResultCards(
                             this,
@@ -621,6 +621,9 @@ class GameActivity : ComponentActivity() {
                                 GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
                             }, 3500)
                         } else if (eliminated) {
+                            addActionMessage(
+                                "❌ ${playerDisplayName(accuserID)} was eliminated"
+                            )
                             playSound(R.raw.player_eliminated_sound)
                             // Only show elimination message, differentiate by playerId
                             if (accuserID == ClientState.playerId) {
