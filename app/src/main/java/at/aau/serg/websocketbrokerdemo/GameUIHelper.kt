@@ -46,7 +46,7 @@ object GameUIHelper {
         val shape = GradientDrawable()
         shape.shape = GradientDrawable.OVAL
         shape.setColor(color)
-        shape.setStroke(2, Color.WHITE)
+        shape.setStroke(2, Color.BLACK)
         dot.background = shape
         return dot
     }
