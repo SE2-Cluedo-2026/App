@@ -1,6 +1,7 @@
 package at.aau.serg.websocketbrokerdemo
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.media.MediaPlayer
@@ -15,6 +16,7 @@ import android.widget.Toast
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import at.aau.serg.websocketbrokerdemo.model.BoardColors
 import com.example.myapplication.R
@@ -450,27 +452,86 @@ class GameActivity : ComponentActivity() {
 
                         if (room != null) {
                             // Problem 3 Fix: Show dialog to enter room on door field
-                            val dialogView =
-                                layoutInflater.inflate(R.layout.dialog_enter_room, null)
-                            dialogView.findViewById<TextView>(R.id.tvTitle).text = "ENTER $room?"
-                            dialogView.findViewById<TextView>(R.id.tvMessage).text =
-                                "DO YOU WANT TO ENTER THE $room?"
+                            val freckleFace = try {
+                                ResourcesCompat.getFont(this, R.font.freckle_face) ?: android.graphics.Typeface.DEFAULT
+                            } catch (e: Exception) {
+                                android.graphics.Typeface.DEFAULT
+                            }
+                            val cluedoPink = ContextCompat.getColor(this, R.color.cluedo_pink)
 
-                            val customDialog = android.app.AlertDialog.Builder(this)
-                                .setView(dialogView)
-                                .setCancelable(false)
-                                .create()
+                            val overlay = android.widget.FrameLayout(this).apply {
+                                setBackgroundColor(android.graphics.Color.argb(200, 20, 20, 20))
+                                isClickable = true
+                            }
 
-                            dialogView.findViewById<Button>(R.id.btnYes).setOnClickListener {
+                            val inner = android.widget.LinearLayout(this).apply {
+                                orientation = android.widget.LinearLayout.VERTICAL
+                                gravity = android.view.Gravity.CENTER
+                                setPadding(48, 48, 48, 48)
+                            }
+
+                            val tvTitle = TextView(this).apply {
+                                text = "ENTER $room?"
+                                setTextColor(android.graphics.Color.WHITE)
+                                textSize = 22f
+                                typeface = freckleFace
+                                gravity = android.view.Gravity.CENTER
+                                setPadding(0, 0, 0, 12)
+                            }
+
+                            val tvMessage = TextView(this).apply {
+                                text = "DO YOU WANT TO ENTER THE $room?"
+                                setTextColor(cluedoPink)
+                                textSize = 16f
+                                typeface = freckleFace
+                                gravity = android.view.Gravity.CENTER
+                                setPadding(0, 0, 0, 24)
+                            }
+
+                            val btnNo = Button(this).apply {
+                                text = "NO"
+                                backgroundTintList = ColorStateList.valueOf(cluedoPink)
+                                setTextColor(android.graphics.Color.WHITE)
+                                typeface = freckleFace
+                            }
+                            val btnYes = Button(this).apply {
+                                text = "YES"
+                                backgroundTintList = ColorStateList.valueOf(cluedoPink)
+                                setTextColor(android.graphics.Color.WHITE)
+                                typeface = freckleFace
+                            }
+
+                            val btnRow = android.widget.LinearLayout(this).apply {
+                                orientation = android.widget.LinearLayout.HORIZONTAL
+                                gravity = android.view.Gravity.CENTER
+                            }
+                            btnRow.addView(btnNo, android.widget.LinearLayout.LayoutParams(
+                                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                            ).apply { marginEnd = GameUIHelper.dpToPx(this@GameActivity, 16) })
+                            btnRow.addView(btnYes)
+
+                            inner.addView(tvTitle)
+                            inner.addView(tvMessage)
+                            inner.addView(btnRow)
+
+                            overlay.addView(inner, android.widget.FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.WRAP_CONTENT,
+                                ViewGroup.LayoutParams.WRAP_CONTENT,
+                                android.view.Gravity.CENTER
+                            ))
+                            rootLayout.addView(overlay, ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            ))
+
+                            btnYes.setOnClickListener {
                                 MyStomp.instance.enterRoom(room)
-                                customDialog.dismiss()
+                                rootLayout.removeView(overlay)
                             }
-                            dialogView.findViewById<Button>(R.id.btnNo).setOnClickListener {
+                            btnNo.setOnClickListener {
                                 if (movesLeft == 0) MyStomp.instance.endTurn()
-                                customDialog.dismiss()
+                                rootLayout.removeView(overlay)
                             }
-
-                            customDialog.show()
                         } else if (movesLeft == 0) {
                             // No room at this position and no moves left — end turn automatically
                             MyStomp.instance.endTurn()
@@ -969,6 +1030,8 @@ class GameActivity : ComponentActivity() {
     ) {
         dismissCheatOverlays()
 
+        val cluedoPink = ContextCompat.getColor(this, R.color.cluedo_pink)
+
         val overlay = android.widget.FrameLayout(this).apply {
             setBackgroundColor(android.graphics.Color.argb(200, 0, 0, 0))
             isClickable = true
@@ -982,23 +1045,27 @@ class GameActivity : ComponentActivity() {
 
         val tvInfo = TextView(this).apply {
             text = "${playerDisplayName(suggesterID)} suggests:\n$suspect, $room, $weapon"
+            typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
             setTextColor(android.graphics.Color.WHITE)
-            textSize = 14f
+            textSize = 18f
             gravity = android.view.Gravity.CENTER
         }
 
         val tvCountdown = TextView(this).apply {
-            text = "Cheat window: ${windowSeconds}s"
-            setTextColor(android.graphics.Color.YELLOW)
-            textSize = 16f
+            text = "CHEAT WINDOW: ${windowSeconds}s"
+            typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 22f
             gravity = android.view.Gravity.CENTER
-            setPadding(0, 16, 0, 16)
+            setPadding(0, 14, 0, 18)
         }
 
         val tvShake = TextView(this).apply {
-            text = if (ClientState.cheatUsed) "Cheat already used!" else "Shake to cheat!"
-            setTextColor(if (ClientState.cheatUsed) android.graphics.Color.GRAY else android.graphics.Color.GREEN)
-            textSize = 16f
+            text = if (ClientState.cheatUsed) "CHEAT ALREADY USED!" else "SHAKE TO CHEAT!"
+            typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+            setTextColor(if (ClientState.cheatUsed) android.graphics.Color.DKGRAY
+            else ContextCompat.getColor(this@GameActivity, R.color.cluedo_pink))
+            textSize = 18f
             gravity = android.view.Gravity.CENTER
             setPadding(0, 16, 0, 16)
         }
@@ -1008,8 +1075,9 @@ class GameActivity : ComponentActivity() {
             shakeDetector = ShakeDetector {
                 runOnUiThread {
                     MyStomp.instance.sendCheatAttempt()
-                    tvShake.text = "Cheat sent!"
-                    tvShake.setTextColor(android.graphics.Color.GRAY)
+                    tvShake.text = "CHEAT SENT!"
+                    tvShake.typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+                    tvShake.setTextColor(cluedoPink)
                     stopShakeDetector()
                 }
             }
@@ -1017,9 +1085,24 @@ class GameActivity : ComponentActivity() {
             sensorManager?.registerListener(shakeDetector, accelerometer, android.hardware.SensorManager.SENSOR_DELAY_UI)
         }
 
-        inner.addView(tvInfo)
+        val divider = View(this).apply {
+            setBackgroundColor(android.graphics.Color.argb(80, 255, 255, 255))
+        }
+
         inner.addView(tvCountdown)
         inner.addView(tvShake)
+        inner.addView(divider, android.widget.LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            GameUIHelper.dpToPx(this, 1)
+        ).apply {
+            topMargin = GameUIHelper.dpToPx(this@GameActivity, 16)
+            bottomMargin = GameUIHelper.dpToPx(this@GameActivity, 16)
+        })
+        inner.addView(tvInfo)
+
+        /*inner.addView(tvInfo)
+        inner.addView(tvCountdown)
+        inner.addView(tvShake)*/
 
         overlay.addView(inner, android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -1051,13 +1134,14 @@ class GameActivity : ComponentActivity() {
     private fun showCheatDecisionOverlay() {
         dismissCheatOverlays()
 
+        val cluedoPink = ContextCompat.getColor(this, R.color.cluedo_pink)
+
         val freckleFace = try {
             ResourcesCompat.getFont(this, R.font.freckle_face)
                 ?: android.graphics.Typeface.DEFAULT
         } catch (e: Exception) {
             android.graphics.Typeface.DEFAULT
         }
-        val cluedoPink = android.graphics.Color.parseColor("#F50057")
 
         val overlay = android.widget.FrameLayout(this).apply {
             setBackgroundColor(android.graphics.Color.argb(200, 20, 20, 20))
@@ -1073,16 +1157,16 @@ class GameActivity : ComponentActivity() {
         val tvInfo = TextView(this).apply {
             text = "DID SOMEONE CHEAT?"
             setTextColor(cluedoPink)
-            textSize = 18f
+            textSize = 22f
             typeface = freckleFace
             gravity = android.view.Gravity.CENTER
-            setPadding(0, 0, 0, 24)
+            setPadding(0, 0, 0, 28)
         }
 
         val tvCountdown = TextView(this).apply {
             text = "YOU HAVE 5 SECONDS TO DECIDE..."
             setTextColor(android.graphics.Color.WHITE)
-            textSize = 14f
+            textSize = 18f
             typeface = freckleFace
             gravity = android.view.Gravity.CENTER
             setPadding(0, 0, 0, 16)
@@ -1090,15 +1174,15 @@ class GameActivity : ComponentActivity() {
 
         val btnYes = Button(this).apply {
             text = "YES, SOMEONE CHEATED!"
-            setBackgroundColor(cluedoPink)
+            backgroundTintList = ColorStateList.valueOf(cluedoPink)
             setTextColor(android.graphics.Color.WHITE)
             typeface = freckleFace
         }
 
         val btnNo = Button(this).apply {
             text = "NOBODY CHEATED!"
-            setBackgroundColor(android.graphics.Color.WHITE)
-            setTextColor(cluedoPink)
+            backgroundTintList = ColorStateList.valueOf(cluedoPink)
+            setTextColor(android.graphics.Color.WHITE)
             typeface = freckleFace
         }
 
@@ -1110,10 +1194,23 @@ class GameActivity : ComponentActivity() {
         btnYes.setOnClickListener { sendDecision(true) }
         btnNo.setOnClickListener { sendDecision(false) }
 
+        val buttonRow = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER
+        }
+
+        buttonRow.addView(btnYes, android.widget.LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+        ).apply { marginEnd = GameUIHelper.dpToPx(this@GameActivity, 8) })
+
+        buttonRow.addView(btnNo, android.widget.LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+        ).apply { marginStart = GameUIHelper.dpToPx(this@GameActivity, 8) })
+
         inner.addView(tvInfo)
         inner.addView(tvCountdown)
-        inner.addView(btnYes)
-        inner.addView(btnNo)
+        inner.addView(buttonRow)
+
         overlay.addView(inner, android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT,
