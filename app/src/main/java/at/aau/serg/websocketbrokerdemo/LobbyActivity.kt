@@ -68,6 +68,9 @@ class LobbyActivity : ComponentActivity() {
             loadingOverlay.visibility = android.view.View.GONE
         }
 
+        LobbyHandler.onPlayerRejoined = null
+        LobbyHandler.onPlayerRejoinedRunning = null
+
         LobbyHandler.onGameStarted = {
             runOnUiThread {
                 isLeaving = true
