@@ -112,7 +112,7 @@ class MainActivity : ComponentActivity(), Callbacks {
         runOnUiThread {
             android.widget.Toast.makeText(
                 this,
-                "Connection lost: $reason",
+                "Disconnected from server!",
                 android.widget.Toast.LENGTH_LONG
             ).show()
         }
