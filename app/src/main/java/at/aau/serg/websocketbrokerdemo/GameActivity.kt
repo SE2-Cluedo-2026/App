@@ -190,6 +190,16 @@ class GameActivity : ComponentActivity() {
             onLeaveGame()
             finish()
         }
+
+        if (intent.getBooleanExtra("waitingForPlayer", false)) {
+            rootLayout.post {
+                showPauseOverlay("", 30)
+                bgMusic?.pause()
+                waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
+                waitingMusic?.isLooping = true
+                waitingMusic?.start()
+            }
+        }
     }
 
     private fun setupBoard() {
@@ -762,12 +772,14 @@ class GameActivity : ComponentActivity() {
                 }
             }
 
-            GameHandler.onContinueGame = { rejoinedId ->
+            GameHandler.onContinueGame = { rejoinedId, waitingForPlayer ->
                 runOnUiThread {
-                    dismissPauseOverlay()
-                    stopWaitingMusic()
+                    if (!waitingForPlayer) {
+                        dismissPauseOverlay()
+                        stopWaitingMusic()
+                        bgMusic?.start()
+                    }
                     playSound(R.raw.player_returned_sound)
-                    bgMusic?.start()
                     Toast.makeText(
                         this,
                         "Player rejoined! Game resumed.",

@@ -63,10 +63,12 @@ class MainActivity : ComponentActivity(), Callbacks {
                 }
             }
         }
-        LobbyHandler.onPlayerRejoinedRunning = {
+        LobbyHandler.onPlayerRejoinedRunning = { waitingForPlayer ->
             runOnUiThread {
                 loadingOverlay.visibility = android.view.View.GONE
-                startActivity(Intent(this, GameActivity::class.java))
+                val intent = Intent(this, GameActivity::class.java)
+                intent.putExtra("waitingForPlayer", waitingForPlayer)
+                startActivity(intent)
             }
         }
     }

@@ -15,7 +15,7 @@ object LobbyHandler {
     var onOtherPlayerRemoved: ((String) -> Unit)? = null
     var onNewPlayerJoined: ((NewPlayerJoinedPayload) -> Unit)? = null
     var onPlayerRejoined: ((PlayerRejoinedPayload) -> Unit)? = null
-    var onPlayerRejoinedRunning: (() -> Unit)? = null
+    var onPlayerRejoinedRunning: ((Boolean) -> Unit)? = null
     var onGameFull: ((GameFullPayload) -> Unit)? = null
     var onLobbyJoined: (() -> Unit)? = null
     var onPlayerRemoved: ((String) -> Unit)? = null
@@ -134,7 +134,8 @@ object LobbyHandler {
                             }
                         }
 
-                        onPlayerRejoinedRunning?.invoke()
+                        val waitingForPlayer = payload.optBoolean("waitingForPlayer", false)
+                        onPlayerRejoinedRunning?.invoke(waitingForPlayer)
                     }
                     // Other clients: nothing to do — they already have their own state
                     // The CONTINUE_GAME message (sent separately) will dismiss the pause overlay

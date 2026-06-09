@@ -20,7 +20,7 @@ class GameHandler {
         var onGameFinished: ((String) -> Unit)? = null
         var onGameAborted: ((String) -> Unit)? = null
         var onGamePaused: ((String, Int) -> Unit)? = null
-        var onContinueGame: ((String) -> Unit)? = null
+        var onContinueGame: ((String, Boolean) -> Unit)? = null
         var onGameError: ((String) -> Unit)? = null
         fun handle(msg: String) {
             try {
@@ -143,7 +143,8 @@ class GameHandler {
 
                     GameMessageType.CONTINUE_GAME.name -> {
                         val rejoinedId = payload?.optString("rejoinedPlayerId") ?: ""
-                        onContinueGame?.invoke(rejoinedId)
+                        val waitingForPlayer = payload?.optBoolean("waitingForPlayer", false) ?: false
+                        onContinueGame?.invoke(rejoinedId, waitingForPlayer)
                     }
 
                     GameMessageType.GAME_ABORTED.name -> {
