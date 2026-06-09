@@ -237,11 +237,22 @@ class LobbyActivity : ComponentActivity() {
 
         LobbyHandler.onGameFull = { dto ->
             runOnUiThread {
-                AlertDialog.Builder(this)
-                    .setTitle("Fehler")
-                    .setMessage(dto.message)
-                    .setPositiveButton("OK") { d, _ -> d.dismiss() }
-                    .show()
+                Toast.makeText(this, dto.message, Toast.LENGTH_LONG).show()
+
+                isLeaving = true
+                disconnectHandler.removeCallbacks(disconnectRunnable)
+                stopDisconnectService()
+
+                MyStomp.instance.leaveLobby()
+
+                Handler(Looper.getMainLooper()).postDelayed({
+                    MyStomp.instance.disconnect()
+
+                    val intent = Intent(this, MainActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                    startActivity(intent)
+                    finish()
+                }, 500)
             }
         }
 
