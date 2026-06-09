@@ -60,6 +60,7 @@ class GameActivity : ComponentActivity() {
     private var cheatDecisionRunnable: Runnable? = null
     private var sensorManager: android.hardware.SensorManager? = null
     private var shakeDetector: ShakeDetector? = null
+    private var lastSuggestion = Triple("", "", "")
 
     private var bgMusic: MediaPlayer? = null
     private var waitingMusic: MediaPlayer? = null
@@ -598,7 +599,9 @@ class GameActivity : ComponentActivity() {
             runOnUiThread {
                 dismissCheatOverlays()
                 if (suggesterID == ClientState.playerId) {
+                    lastSuggestion = Triple(suspect, room, weapon)
                     if (matchingCards.isNotEmpty()) {
+                        ClientState.seenCards.addAll(matchingCards)
                         GameUIHelper.showResultCards(this, rootLayout, matchingCards)
                         updateChecklist()
                     } else {
@@ -621,7 +624,7 @@ class GameActivity : ComponentActivity() {
                 runOnUiThread {
                     addActionMessage(
                         "💡 ${playerDisplayName(suggesterID)} made a suggestion")
-                    if (suggesterID != ClientState.playerId && !ClientState.cheatUsed && !ClientState.isEliminated) {
+                    if (suggesterID != ClientState.playerId && !ClientState.isEliminated) {
                         showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
                     }
                 }
@@ -636,11 +639,21 @@ class GameActivity : ComponentActivity() {
                             ClientState.cheatUsed = true
                         }
                         val allCards = cheaters.flatMap { it.second }
-                        val msg =
-                            "Cheat detected! Revealed cards: ${allCards.joinToString(", ")}"
+
+                        val suggestionCards = listOf(lastSuggestion.first, lastSuggestion.second, lastSuggestion.third)
+                            .filter { it.isNotEmpty() }
+
+                        val penaltyCard = allCards.firstOrNull { it !in ClientState.seenCards }
+                            ?: allCards.firstOrNull()
+
+                        val cardsToShow = (suggestionCards + listOfNotNull(penaltyCard)).distinct()
+                        ClientState.seenCards.addAll(cardsToShow)
+
+                        val msg = "Cheat detected! Cards: ${cardsToShow.joinToString(", ")}"
                         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
-                        if (allCards.isNotEmpty()) {
-                            GameUIHelper.showResultCards(this, rootLayout, allCards, 5000)
+
+                        if (cardsToShow.isNotEmpty()) {
+                            GameUIHelper.showResultCards(this, rootLayout, cardsToShow, 5000)
                         }
                     } else if (cheatPressed) {
                         val msg = if (revealedCard != null)
@@ -1077,7 +1090,7 @@ class GameActivity : ComponentActivity() {
                     MyStomp.instance.sendCheatAttempt()
                     tvShake.text = "CHEAT SENT!"
                     tvShake.typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
-                    tvShake.setTextColor(cluedoPink)
+                    tvShake.setTextColor(android.graphics.Color.GREEN)
                     stopShakeDetector()
                 }
             }
