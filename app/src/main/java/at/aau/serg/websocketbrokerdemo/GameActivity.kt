@@ -733,9 +733,13 @@ class GameActivity : ComponentActivity() {
                         playSound(R.raw.win_sound)
                         val msg = if (winner == ClientState.playerId) getString(R.string.you_won)
                                   else getString(R.string.player_won, playerDisplayName(winner))
+                        GameUIHelper.showGameEndOverlay(this, rootLayout, msg, isWin = true)
                         android.os.Handler(mainLooper).postDelayed({
-                            GameUIHelper.showGameEndOverlay(this, rootLayout, msg, isWin = true)
-                        }, 3500)
+                            val intent = Intent(this, LobbyActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                            finish()
+                        }, 5000)
                     }
                 }
             }
@@ -774,6 +778,7 @@ class GameActivity : ComponentActivity() {
 
             GameHandler.onGameAborted = { reason ->
                 runOnUiThread {
+                    if (reason == "Game finished — returning to lobby") return@runOnUiThread
                     if (storedWinnerMsg.isNotEmpty()) return@runOnUiThread
                     stopWaitingMusic()
                     bgMusic?.stop()
