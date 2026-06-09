@@ -413,9 +413,12 @@ class GameActivity : ComponentActivity() {
         bgMusic?.release()
         bgMusic = null
         stopWaitingMusic()
-        // Only disconnect — the server's SessionDisconnectEvent will start the 30-second
-        // pause/rejoin timer. Calling leaveLobby() before disconnect would race with
-        // the session closing and could bypass the rejoin logic entirely.
+        // If the game is currently paused (another player is disconnected), send an explicit
+        // leaveLobby so the server treats this as an intentional leave and doesn't start
+        // an additional rejoin timer for us.
+        if (pauseOverlay != null) {
+            MyStomp.instance.leaveLobby()
+        }
         MyStomp.instance.disconnect()
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
