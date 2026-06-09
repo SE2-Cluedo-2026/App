@@ -61,6 +61,7 @@ class GameActivity : ComponentActivity() {
     private var sensorManager: android.hardware.SensorManager? = null
     private var shakeDetector: ShakeDetector? = null
     private var lastSuggestion = Triple("", "", "")
+    private var storedWinnerMsg = ""
 
     private var bgMusic: MediaPlayer? = null
     private var waitingMusic: MediaPlayer? = null
@@ -682,17 +683,20 @@ class GameActivity : ComponentActivity() {
                             3000
                         )
                         if (correct) {
+                            storedWinnerMsg = if (accuserID == ClientState.playerId) getString(R.string.you_won)
+                                              else getString(R.string.player_won, playerDisplayName(accuserID))
                             bgMusic?.stop()
                             bgMusic?.release()
                             bgMusic = null
                             playSound(R.raw.win_sound)
-                            val msg =
-                                if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(
-                                    R.string.player_won,
-                                    playerDisplayName(accuserID)
-                                )
                             android.os.Handler(mainLooper).postDelayed({
-                                GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
+                                GameUIHelper.showGameEndOverlay(this, rootLayout, storedWinnerMsg, isWin = true)
+                                android.os.Handler(mainLooper).postDelayed({
+                                    val intent = Intent(this, LobbyActivity::class.java)
+                                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                    startActivity(intent)
+                                    finish()
+                                }, 5000)
                             }, 3500)
                         } else if (eliminated) {
                             addActionMessage(
@@ -722,16 +726,17 @@ class GameActivity : ComponentActivity() {
 
             GameHandler.onGameFinished = { winner ->
                 runOnUiThread {
-                    bgMusic?.stop()
-                    bgMusic?.release()
-                    bgMusic = null
-                    playSound(R.raw.win_sound)
-                    val msg =
-                        if (winner == ClientState.playerId) getString(R.string.you_won) else getString(
-                            R.string.player_won,
-                            playerDisplayName(winner)
-                        )
-                    GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
+                    if (storedWinnerMsg.isEmpty()) {
+                        bgMusic?.stop()
+                        bgMusic?.release()
+                        bgMusic = null
+                        playSound(R.raw.win_sound)
+                        val msg = if (winner == ClientState.playerId) getString(R.string.you_won)
+                                  else getString(R.string.player_won, playerDisplayName(winner))
+                        android.os.Handler(mainLooper).postDelayed({
+                            GameUIHelper.showGameEndOverlay(this, rootLayout, msg, isWin = true)
+                        }, 3500)
+                    }
                 }
             }
 
@@ -769,6 +774,7 @@ class GameActivity : ComponentActivity() {
 
             GameHandler.onGameAborted = { reason ->
                 runOnUiThread {
+                    if (storedWinnerMsg.isNotEmpty()) return@runOnUiThread
                     stopWaitingMusic()
                     bgMusic?.stop()
                     bgMusic?.release()
@@ -778,7 +784,8 @@ class GameActivity : ComponentActivity() {
                     GameUIHelper.showGameEndOverlay(
                         this,
                         rootLayout,
-                        getString(R.string.game_over, displayReason)
+                        getString(R.string.game_over, displayReason),
+                        isWin = false
                     )
                     android.os.Handler(mainLooper).postDelayed({
                         val intent = Intent(this, LobbyActivity::class.java)
@@ -996,7 +1003,8 @@ class GameActivity : ComponentActivity() {
             isClickable = true // block touches to game underneath
         }
         val textView = TextView(this).apply {
-            setTextColor(Color.WHITE)
+            typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+            setTextColor(android.graphics.Color.WHITE)
             textSize = 20f
             gravity = android.view.Gravity.CENTER
         }
