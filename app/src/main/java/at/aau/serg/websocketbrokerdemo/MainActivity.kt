@@ -81,7 +81,6 @@ class MainActivity : ComponentActivity(), Callbacks {
                     android.widget.Toast.LENGTH_LONG
                 ).show()
 
-                MyStomp.instance.leaveLobby()
 
                 android.os.Handler(mainLooper).postDelayed({
                     MyStomp.instance.disconnect()

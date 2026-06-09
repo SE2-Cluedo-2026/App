@@ -243,7 +243,7 @@ class LobbyActivity : ComponentActivity() {
                 disconnectHandler.removeCallbacks(disconnectRunnable)
                 stopDisconnectService()
 
-                MyStomp.instance.leaveLobby()
+                //MyStomp.instance.leaveLobby()
 
                 Handler(Looper.getMainLooper()).postDelayed({
                     MyStomp.instance.disconnect()
