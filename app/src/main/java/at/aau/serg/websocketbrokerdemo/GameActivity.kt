@@ -195,6 +195,7 @@ class GameActivity : ComponentActivity() {
             rootLayout.post {
                 showPauseOverlay("", 30)
                 bgMusic?.pause()
+                stopWaitingMusic()
                 waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
                 waitingMusic?.isLooping = true
                 waitingMusic?.start()
@@ -764,6 +765,7 @@ class GameActivity : ComponentActivity() {
                     val leavePlayer = MediaPlayer.create(this, R.raw.ingame_leave_sound)
                     leavePlayer?.setOnCompletionListener {
                         it.release()
+                        stopWaitingMusic()
                         waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
                         waitingMusic?.isLooping = true
                         waitingMusic?.start()
@@ -778,11 +780,16 @@ class GameActivity : ComponentActivity() {
                         dismissPauseOverlay()
                         stopWaitingMusic()
                         bgMusic?.start()
+                        Toast.makeText(
+                            this,
+                            "All Players rejoined!",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                     playSound(R.raw.player_returned_sound)
-                    Toast.makeText(
+                    if(waitingForPlayer) Toast.makeText(
                         this,
-                        "Player rejoined! Game resumed.",
+                        "A Player rejoined!",
                         Toast.LENGTH_SHORT
                     ).show()
                     updateAllPlayerStatuses()
