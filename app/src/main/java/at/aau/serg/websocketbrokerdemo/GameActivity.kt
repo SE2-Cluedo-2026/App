@@ -60,6 +60,8 @@ class GameActivity : ComponentActivity() {
     private var cheatDecisionRunnable: Runnable? = null
     private var sensorManager: android.hardware.SensorManager? = null
     private var shakeDetector: ShakeDetector? = null
+    private var lastSuggestion = Triple("", "", "")
+    private var storedWinnerMsg = ""
 
     private var bgMusic: MediaPlayer? = null
     private var waitingMusic: MediaPlayer? = null
@@ -187,6 +189,17 @@ class GameActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this) {
             onLeaveGame()
             finish()
+        }
+
+        if (intent.getBooleanExtra("waitingForPlayer", false)) {
+            rootLayout.post {
+                showPauseOverlay("", 30)
+                bgMusic?.pause()
+                stopWaitingMusic()
+                waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
+                waitingMusic?.isLooping = true
+                waitingMusic?.start()
+            }
         }
     }
 
@@ -411,9 +424,12 @@ class GameActivity : ComponentActivity() {
         bgMusic?.release()
         bgMusic = null
         stopWaitingMusic()
-        // Only disconnect — the server's SessionDisconnectEvent will start the 30-second
-        // pause/rejoin timer. Calling leaveLobby() before disconnect would race with
-        // the session closing and could bypass the rejoin logic entirely.
+        // If the game is currently paused (another player is disconnected), send an explicit
+        // leaveLobby so the server treats this as an intentional leave and doesn't start
+        // an additional rejoin timer for us.
+        if (pauseOverlay != null) {
+            MyStomp.instance.leaveLobby()
+        }
         MyStomp.instance.disconnect()
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -598,7 +614,9 @@ class GameActivity : ComponentActivity() {
             runOnUiThread {
                 dismissCheatOverlays()
                 if (suggesterID == ClientState.playerId) {
+                    lastSuggestion = Triple(suspect, room, weapon)
                     if (matchingCards.isNotEmpty()) {
+                        ClientState.seenCards.addAll(matchingCards)
                         GameUIHelper.showResultCards(this, rootLayout, matchingCards)
                         updateChecklist()
                     } else {
@@ -621,7 +639,7 @@ class GameActivity : ComponentActivity() {
                 runOnUiThread {
                     addActionMessage(
                         "💡 ${playerDisplayName(suggesterID)} made a suggestion")
-                    if (suggesterID != ClientState.playerId && !ClientState.cheatUsed && !ClientState.isEliminated) {
+                    if (suggesterID != ClientState.playerId && !ClientState.isEliminated) {
                         showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
                     }
                 }
@@ -636,11 +654,21 @@ class GameActivity : ComponentActivity() {
                             ClientState.cheatUsed = true
                         }
                         val allCards = cheaters.flatMap { it.second }
-                        val msg =
-                            "Cheat detected! Revealed cards: ${allCards.joinToString(", ")}"
+
+                        val suggestionCards = listOf(lastSuggestion.first, lastSuggestion.second, lastSuggestion.third)
+                            .filter { it.isNotEmpty() }
+
+                        val penaltyCard = allCards.firstOrNull { it !in ClientState.seenCards }
+                            ?: allCards.firstOrNull()
+
+                        val cardsToShow = (suggestionCards + listOfNotNull(penaltyCard)).distinct()
+                        ClientState.seenCards.addAll(cardsToShow)
+
+                        val msg = "Cheat detected! Cards: ${cardsToShow.joinToString(", ")}"
                         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
-                        if (allCards.isNotEmpty()) {
-                            GameUIHelper.showResultCards(this, rootLayout, allCards, 5000)
+
+                        if (cardsToShow.isNotEmpty()) {
+                            GameUIHelper.showResultCards(this, rootLayout, cardsToShow, 5000)
                         }
                     } else if (cheatPressed) {
                         val msg = if (revealedCard != null)
@@ -669,17 +697,20 @@ class GameActivity : ComponentActivity() {
                             3000
                         )
                         if (correct) {
+                            storedWinnerMsg = if (accuserID == ClientState.playerId) getString(R.string.you_won)
+                                              else getString(R.string.player_won, playerDisplayName(accuserID))
                             bgMusic?.stop()
                             bgMusic?.release()
                             bgMusic = null
                             playSound(R.raw.win_sound)
-                            val msg =
-                                if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(
-                                    R.string.player_won,
-                                    playerDisplayName(accuserID)
-                                )
                             android.os.Handler(mainLooper).postDelayed({
-                                GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
+                                GameUIHelper.showGameEndOverlay(this, rootLayout, storedWinnerMsg, isWin = true)
+                                android.os.Handler(mainLooper).postDelayed({
+                                    val intent = Intent(this, LobbyActivity::class.java)
+                                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                    startActivity(intent)
+                                    finish()
+                                }, 5000)
                             }, 3500)
                         } else if (eliminated) {
                             addActionMessage(
@@ -709,16 +740,21 @@ class GameActivity : ComponentActivity() {
 
             GameHandler.onGameFinished = { winner ->
                 runOnUiThread {
-                    bgMusic?.stop()
-                    bgMusic?.release()
-                    bgMusic = null
-                    playSound(R.raw.win_sound)
-                    val msg =
-                        if (winner == ClientState.playerId) getString(R.string.you_won) else getString(
-                            R.string.player_won,
-                            playerDisplayName(winner)
-                        )
-                    GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
+                    if (storedWinnerMsg.isEmpty()) {
+                        bgMusic?.stop()
+                        bgMusic?.release()
+                        bgMusic = null
+                        playSound(R.raw.win_sound)
+                        val msg = if (winner == ClientState.playerId) getString(R.string.you_won)
+                                  else getString(R.string.player_won, playerDisplayName(winner))
+                        GameUIHelper.showGameEndOverlay(this, rootLayout, msg, isWin = true)
+                        android.os.Handler(mainLooper).postDelayed({
+                            val intent = Intent(this, LobbyActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                            finish()
+                        }, 5000)
+                    }
                 }
             }
 
@@ -729,6 +765,7 @@ class GameActivity : ComponentActivity() {
                     val leavePlayer = MediaPlayer.create(this, R.raw.ingame_leave_sound)
                     leavePlayer?.setOnCompletionListener {
                         it.release()
+                        stopWaitingMusic()
                         waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
                         waitingMusic?.isLooping = true
                         waitingMusic?.start()
@@ -737,15 +774,22 @@ class GameActivity : ComponentActivity() {
                 }
             }
 
-            GameHandler.onContinueGame = { rejoinedId ->
+            GameHandler.onContinueGame = { rejoinedId, waitingForPlayer ->
                 runOnUiThread {
-                    dismissPauseOverlay()
-                    stopWaitingMusic()
+                    if (!waitingForPlayer) {
+                        dismissPauseOverlay()
+                        stopWaitingMusic()
+                        bgMusic?.start()
+                        Toast.makeText(
+                            this,
+                            "All Players rejoined!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                     playSound(R.raw.player_returned_sound)
-                    bgMusic?.start()
-                    Toast.makeText(
+                    if(waitingForPlayer) Toast.makeText(
                         this,
-                        "Player rejoined! Game resumed.",
+                        "A Player rejoined!",
                         Toast.LENGTH_SHORT
                     ).show()
                     updateAllPlayerStatuses()
@@ -756,6 +800,8 @@ class GameActivity : ComponentActivity() {
 
             GameHandler.onGameAborted = { reason ->
                 runOnUiThread {
+                    if (reason == "Game finished — returning to lobby") return@runOnUiThread
+                    if (storedWinnerMsg.isNotEmpty()) return@runOnUiThread
                     stopWaitingMusic()
                     bgMusic?.stop()
                     bgMusic?.release()
@@ -765,7 +811,8 @@ class GameActivity : ComponentActivity() {
                     GameUIHelper.showGameEndOverlay(
                         this,
                         rootLayout,
-                        getString(R.string.game_over, displayReason)
+                        getString(R.string.game_over, displayReason),
+                        isWin = false
                     )
                     android.os.Handler(mainLooper).postDelayed({
                         val intent = Intent(this, LobbyActivity::class.java)
@@ -983,7 +1030,8 @@ class GameActivity : ComponentActivity() {
             isClickable = true // block touches to game underneath
         }
         val textView = TextView(this).apply {
-            setTextColor(Color.WHITE)
+            typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+            setTextColor(android.graphics.Color.WHITE)
             textSize = 20f
             gravity = android.view.Gravity.CENTER
         }
@@ -1077,7 +1125,7 @@ class GameActivity : ComponentActivity() {
                     MyStomp.instance.sendCheatAttempt()
                     tvShake.text = "CHEAT SENT!"
                     tvShake.typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
-                    tvShake.setTextColor(cluedoPink)
+                    tvShake.setTextColor(android.graphics.Color.GREEN)
                     stopShakeDetector()
                 }
             }

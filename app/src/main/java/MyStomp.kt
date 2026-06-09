@@ -173,7 +173,6 @@ class MyStomp(val callbacks: Callbacks) {
         scope.launch {
             try {
                 activeSession.sendText(LOBBY_DESTINATION, json.toString())
-                    ?: callback(connectErr)
             } catch (e: Exception) {
                 Log.e("MyStomp", "START_GAME failed", e)
             }

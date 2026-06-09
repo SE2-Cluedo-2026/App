@@ -63,10 +63,12 @@ class MainActivity : ComponentActivity(), Callbacks {
                 }
             }
         }
-        LobbyHandler.onPlayerRejoinedRunning = {
+        LobbyHandler.onPlayerRejoinedRunning = { waitingForPlayer ->
             runOnUiThread {
                 loadingOverlay.visibility = android.view.View.GONE
-                startActivity(Intent(this, GameActivity::class.java))
+                val intent = Intent(this, GameActivity::class.java)
+                intent.putExtra("waitingForPlayer", waitingForPlayer)
+                startActivity(intent)
             }
         }
 
@@ -131,7 +133,7 @@ class MainActivity : ComponentActivity(), Callbacks {
         runOnUiThread {
             android.widget.Toast.makeText(
                 this,
-                "Connection lost: $reason",
+                "Disconnected from server!",
                 android.widget.Toast.LENGTH_LONG
             ).show()
         }

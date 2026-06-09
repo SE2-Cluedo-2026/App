@@ -343,26 +343,49 @@ object GameUIHelper {
         }, durationMs)
     }
 
-    fun showGameEndOverlay(context: Context, parent: ViewGroup, message: String) {
-        val overlay = ConstraintLayout(context)
-        overlay.setBackgroundColor(Color.argb(200, 0, 0, 0))
+    fun showGameEndOverlay(
+        context: Context,
+        parent: ViewGroup,
+        message: String,
+        isWin: Boolean = false
+    ) {
+        val overlay = android.widget.FrameLayout(context)
         overlay.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         )
-        val tv = TextView(context)
-        tv.text = message
-        tv.setTextColor(Color.WHITE)
-        tv.textSize = 24f
-        tv.gravity = Gravity.CENTER
-        val tlp = ConstraintLayout.LayoutParams(ConstraintLayout.LayoutParams.WRAP_CONTENT, ConstraintLayout.LayoutParams.WRAP_CONTENT).apply {
-            startToStart = ConstraintSet.PARENT_ID
-            endToEnd = ConstraintSet.PARENT_ID
-            topToTop = ConstraintSet.PARENT_ID
-            bottomToBottom = ConstraintSet.PARENT_ID
+
+        val bgImage = ImageView(context)
+        bgImage.layoutParams = android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        bgImage.scaleType = ImageView.ScaleType.FIT_XY
+        bgImage.setImageResource(if (isWin) R.drawable.winner else R.drawable.gameover)
+        overlay.addView(bgImage)
+
+        if (isWin) {
+            val content = LinearLayout(context)
+            content.orientation = LinearLayout.VERTICAL
+            content.gravity = Gravity.CENTER_HORIZONTAL
+            content.layoutParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            )
+
+            val tv = TextView(context)
+            tv.text = message
+            tv.setTextColor(ContextCompat.getColor(context, R.color.cluedo_pink))
+            tv.textSize = 18f
+            tv.gravity = Gravity.CENTER
+            tv.typeface = ResourcesCompat.getFont(context, R.font.freckle_face)
+            tv.setShadowLayer(4f, 2f, 2f, Color.BLACK)
+            tv.setPadding(0, 0, 0, dpToPx(context, 12))
+            content.addView(tv)
+
+            overlay.addView(content)
         }
-        tv.layoutParams = tlp
-        overlay.addView(tv)
         parent.addView(overlay)
     }
 }
