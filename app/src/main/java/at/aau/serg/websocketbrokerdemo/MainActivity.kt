@@ -69,12 +69,31 @@ class MainActivity : ComponentActivity(), Callbacks {
                 startActivity(Intent(this, GameActivity::class.java))
             }
         }
+
+        LobbyHandler.onGameFull = { dto ->
+            runOnUiThread {
+                findViewById<android.widget.FrameLayout>(R.id.loadingOverlay).visibility =
+                    android.view.View.GONE
+
+                android.widget.Toast.makeText(
+                    this,
+                    dto.message,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+
+
+                android.os.Handler(mainLooper).postDelayed({
+                    MyStomp.instance.disconnect()
+                }, 500)
+            }
+        }
     }
 
     override fun onDestroy() {
         LobbyHandler.onLobbyJoined = null
         LobbyHandler.onPlayerRejoined = null
         LobbyHandler.onPlayerRejoinedRunning = null
+        LobbyHandler.onGameFull = null
         if (::myStomp.isInitialized) {
             myStomp.disconnect()
         }

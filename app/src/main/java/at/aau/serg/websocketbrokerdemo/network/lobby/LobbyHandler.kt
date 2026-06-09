@@ -141,6 +141,8 @@ object LobbyHandler {
                 }
 
                 LobbyMessageType.GAME_FULL -> {
+                    val payloadPlayerId = payload.optString("playerId", "")
+                    if (payloadPlayerId != ClientState.playerId) return
                     onGameFull?.invoke(parseLobbyError(payload))
                 }
 
