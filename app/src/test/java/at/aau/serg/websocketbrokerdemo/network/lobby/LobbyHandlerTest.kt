@@ -4,9 +4,11 @@ import at.aau.serg.websocketbrokerdemo.model.ClientState
 import at.aau.serg.websocketbrokerdemo.messaging.dtos.lobbyDTO.GameFullPayload
 import at.aau.serg.websocketbrokerdemo.messaging.dtos.lobbyDTO.NewPlayerJoinedPayload
 import at.aau.serg.websocketbrokerdemo.messaging.dtos.lobbyDTO.PlayerRejoinedPayload
+import android.util.Log
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito
 
 class LobbyHandlerTest {
 
@@ -35,6 +37,10 @@ class LobbyHandlerTest {
         LobbyHandler.onGameStarted = null
         LobbyHandler.onStartGameError = null
         LobbyHandler.onPlayerRejoinedRunning = null
+    }
+
+    private fun handleWithMockedLog(block: () -> Unit) {
+        Mockito.mockStatic(Log::class.java).use { block() }
     }
 
     private fun buildNewPlayerJoined(
@@ -137,6 +143,22 @@ class LobbyHandlerTest {
         Assertions.assertEquals("A1", result?.existingPlayers?.get(0)?.position)
     }
 
+    @Test
+    fun `NEW_PLAYER_JOINED without availableCharacters uses empty list`() {
+        LobbyHandler.handle("""
+        {
+          "type": "NEW_PLAYER_JOINED",
+          "payload": {
+            "playerId": "p1",
+            "existingPlayers": []
+          }
+        }
+    """.trimIndent())
+
+        Assertions.assertTrue(ClientState.availableCharacters.isEmpty())
+        Assertions.assertTrue(ClientState.players.isEmpty())
+    }
+
 
     @Test
     fun `PLAYER_REJOINED calls onPlayerRejoined with correct data`() {
@@ -175,9 +197,37 @@ class LobbyHandlerTest {
         Assertions.assertTrue(true)
     }
 
+    @Test
+    fun `PLAYER_REJOINED parses players when existingPlayers is missing`() {
+        LobbyHandler.handle("""
+        {
+          "type": "PLAYER_REJOINED",
+          "payload": {
+            "playerId": "p1",
+            "players": [
+              {
+                "playerId": "p2",
+                "ready": true,
+                "characterType": "DR_RED",
+                "position": "1,1"
+              }
+            ]
+          }
+        }
+    """.trimIndent())
+
+        Assertions.assertEquals(1, ClientState.players.size)
+        Assertions.assertEquals("p2", ClientState.players[0].playerId)
+        Assertions.assertTrue(ClientState.players[0].ready)
+        Assertions.assertEquals("DR_RED", ClientState.players[0].character)
+        Assertions.assertEquals("1,1", ClientState.players[0].position)
+    }
+
 
     @Test
     fun `GAME_FULL calls onGameFull with correct data`() {
+        ClientState.playerId = "p1"
+
         var result: GameFullPayload? = null
         LobbyHandler.onGameFull = { result = it }
 
@@ -488,7 +538,8 @@ class LobbyHandlerTest {
         {
           "type": "PLAYER_REJOINED_RUNNING",
           "payload": {
-            "playerId": "p1"
+            "playerId": "p1",
+            "playerPositions": {}
           }
         }
     """.trimIndent())
@@ -523,5 +574,46 @@ class LobbyHandlerTest {
     """.trimIndent())
 
         Assertions.assertEquals("DR_BLUE", ClientState.players[0].character)
+    }
+    @Test
+    fun `SET_READY without availableCharacters uses empty list`() {
+        LobbyHandler.handle("""
+        {
+          "type": "SET_CHARACTER_TYPE_AND_STATUS_READY",
+          "payload": {
+            "playerId": "p1",
+            "characterType": "DR_RED",
+            "ready": true,
+            "existingPlayers": [
+              {
+                "playerId": "p1",
+                "ready": true,
+                "characterType": "DR_RED",
+                "position": ""
+              }
+            ]
+          }
+        }
+    """.trimIndent())
+
+        Assertions.assertTrue(ClientState.availableCharacters.isEmpty())
+    }
+
+    @Test
+        fun `unknown lobby message type does not crash`() = handleWithMockedLog {
+        LobbyHandler.handle("""{ "type": "UNKNOWN_LOBBY_TYPE", "payload": {} }""")
+        Assertions.assertTrue(true)
+    }
+
+    @Test
+    fun `known lobby message type without payload does not crash`() = handleWithMockedLog {
+        LobbyHandler.handle("""{ "type": "GAME_FULL" }""")
+        Assertions.assertTrue(true)
+    }
+
+    @Test
+    fun `invalid lobby json does not crash`() = handleWithMockedLog {
+        LobbyHandler.handle("not a json")
+        Assertions.assertTrue(true)
     }
 }
