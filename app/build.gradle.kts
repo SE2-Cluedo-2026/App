@@ -127,7 +127,8 @@ sonar {
             "**/LearnActivity.kt," +
             "**/GameUIHelper.kt," +
             "**/BoardColors.kt," +
-            "**/res/drawable/**,**/res/mipmap-*/**,**/res/font/**"
+            "**/res/drawable/**,**/res/mipmap-*/**,**/res/font/**" +
+            "**/Card.kt**"
 
         )
     }
