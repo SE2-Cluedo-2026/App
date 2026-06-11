@@ -19,45 +19,114 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.0" />
 
-    <Button
-        android:id="@+id/btnNext"
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideExitBtnTop"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:alpha="0"
-        android:text="Weiter"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.499" />
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.232" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideExitBtnBottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.3" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideExitBtnStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.777" />
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideExitBtnEnd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.8345" />
+
+    <Button
+        android:id="@+id/btnNext"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="1"
+        android:background="@drawable/transparent_button_bg2"
+        android:textColor="#FFFFFF"
+        android:stateListAnimator="@null"
+
+        app:layout_constraintTop_toBottomOf="@id/guidePrevNextBtnTop"
+        app:layout_constraintBottom_toTopOf="@id/guidePrevNextBtnButton"
+        app:layout_constraintStart_toEndOf="@id/guideNextBtnStart"
+        app:layout_constraintEnd_toStartOf="@id/guideNextBtnEnd" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guidePrevNextBtnTop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.4655" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guidePrevNextBtnButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.534" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideNextBtnStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.886" />
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideNextBtnEnd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.944" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guidePrevBtnStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.056" />
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guidePrevBtnEnd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.114" />
 
     <Button
         android:id="@+id/btnPrevious"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:alpha="0"
-        android:text="Zurück"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.499" />
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="1"
+        android:background="@drawable/transparent_button_bg2"
+        android:textColor="#FFFFFF"
+        android:stateListAnimator="@null"
+
+        app:layout_constraintTop_toBottomOf="@id/guidePrevNextBtnTop"
+        app:layout_constraintBottom_toTopOf="@id/guidePrevNextBtnButton"
+        app:layout_constraintStart_toEndOf="@id/guidePrevBtnStart"
+        app:layout_constraintEnd_toStartOf="@id/guidePrevBtnEnd" />
 
     <Button
         android:id="@+id/btnBack"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:alpha="0"
-        android:text="Zurück"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="1"
+        android:background="@drawable/transparent_button_bg2"
+        android:textColor="#FFFFFF"
+        android:stateListAnimator="@null"
 
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.852"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.235" />
+        app:layout_constraintTop_toBottomOf="@id/guideExitBtnTop"
+        app:layout_constraintBottom_toTopOf="@id/guideExitBtnBottom"
+        app:layout_constraintStart_toEndOf="@id/guideExitBtnStart"
+        app:layout_constraintEnd_toStartOf="@id/guideExitBtnEnd" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
