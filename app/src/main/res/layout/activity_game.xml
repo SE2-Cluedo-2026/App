@@ -222,14 +222,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            app:layout_constraintGuide_percent="0.163" />
+            app:layout_constraintGuide_percent="0.172" />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtnBottom"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            app:layout_constraintGuide_percent="0.207" />
+            app:layout_constraintGuide_percent="0.208" />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn0Start"
@@ -237,72 +237,74 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             app:layout_constraintGuide_percent="0.200" />
+
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn0End"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.291" />
+            app:layout_constraintGuide_percent="0.298" />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn1Start"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.31" />
+            app:layout_constraintGuide_percent="0.315" />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn1End"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.44" />
+            app:layout_constraintGuide_percent="0.432" />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn2Start"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.44" />
+            app:layout_constraintGuide_percent="0.448" />
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn2End"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.541" />
+            app:layout_constraintGuide_percent="0.537" />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn3Start"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.542" />
+            app:layout_constraintGuide_percent="0.555" />
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn3End"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.666" />
+            app:layout_constraintGuide_percent="0.644" />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn4Start"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.667" />
+            app:layout_constraintGuide_percent="0.663" />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideBtn4End"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.75" />
+            app:layout_constraintGuide_percent="0.754" />
 
         <Button
             android:id="@+id/btnRollDice"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:background="@android:color/transparent"
+            android:background="@drawable/transparent_button_bg"
+            android:stateListAnimator="@null"
             android:text=""
             app:layout_constraintTop_toBottomOf="@id/guideBtnTop"
             app:layout_constraintBottom_toTopOf="@id/guideBtnBottom"
@@ -313,7 +315,8 @@
             android:id="@+id/btnHiddenWay"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:background="@android:color/transparent"
+            android:background="@drawable/transparent_button_bg"
+            android:stateListAnimator="@null"
             android:text=""
             app:layout_constraintTop_toBottomOf="@id/guideBtnTop"
             app:layout_constraintBottom_toTopOf="@id/guideBtnBottom"
@@ -324,7 +327,8 @@
             android:id="@+id/btnSuggest"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:background="@android:color/transparent"
+            android:background="@drawable/transparent_button_bg"
+            android:stateListAnimator="@null"
             android:text=""
             app:layout_constraintTop_toBottomOf="@id/guideBtnTop"
             app:layout_constraintBottom_toTopOf="@id/guideBtnBottom"
@@ -335,7 +339,8 @@
             android:id="@+id/btnAccuse"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:background="@android:color/transparent"
+            android:background="@drawable/transparent_button_bg"
+            android:stateListAnimator="@null"
             android:text=""
             app:layout_constraintTop_toBottomOf="@id/guideBtnTop"
             app:layout_constraintBottom_toTopOf="@id/guideBtnBottom"
@@ -346,7 +351,8 @@
             android:id="@+id/btnLeave"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:background="@android:color/transparent"
+            android:background="@drawable/transparent_button_bg"
+            android:stateListAnimator="@null"
             android:text=""
             app:layout_constraintTop_toBottomOf="@id/guideBtnTop"
             app:layout_constraintBottom_toTopOf="@id/guideBtnBottom"
