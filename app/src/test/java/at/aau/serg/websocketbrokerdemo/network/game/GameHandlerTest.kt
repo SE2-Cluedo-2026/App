@@ -472,7 +472,9 @@ class GameHandlerTest {
     @Test
     fun `CONTINUE_GAME calls callback`() = handle {
         var called = false
-        GameHandler.onContinueGame = { _ -> called = true }
+        GameHandler.onContinueGame = { rejoinedPlayerId, someBoolean ->
+            called = true
+        }
         GameHandler.handle("""{ "type": "CONTINUE_GAME", "payload": { "rejoinedPlayerId": "p1" } }""")
         Assertions.assertTrue(called)
     }
@@ -533,5 +535,77 @@ class GameHandlerTest {
         }
         GameHandler.handle("""{ "type": "ROLL_DICE", "payload": { "playerId": "p1", "value":5 } }""")
         Assertions.assertEquals("p1", playerId)
+    }
+    @Test
+    fun `GAME_ABORTED replaces player ids with existing character names in reason`() = handle {
+        var reason = ""
+
+        at.aau.serg.websocketbrokerdemo.model.ClientState.playerCharacterMap.clear()
+        at.aau.serg.websocketbrokerdemo.model.ClientState.playerCharacterMap["p1"] = "MRS_LAVENDER"
+
+        at.aau.serg.websocketbrokerdemo.model.ClientState.players = listOf(
+            at.aau.serg.websocketbrokerdemo.messaging.dtos.ExistingPlayerDTO(
+                playerId = "p2",
+                ready = true,
+                character = "DR_RED",
+                position = null
+            )
+        )
+
+        GameHandler.onGameAborted = { r ->
+            reason = r
+        }
+
+        GameHandler.handle(
+            """{
+            "type": "GAME_ABORTED",
+            "payload": {
+                "reason": "p1 and p2 left the game"
+            }
+        }"""
+        )
+
+        Assertions.assertEquals("MRS_LAVENDER and DR_RED left the game", reason)
+    }
+    @Test
+    fun `CHEAT_RESULT with existing phase current player index and current player cheater updates state`() = handle {
+        var endTurnIndex = -1
+
+        at.aau.serg.websocketbrokerdemo.model.ClientState.playerId = "p2"
+        at.aau.serg.websocketbrokerdemo.model.ClientState.cheatUsed = false
+        at.aau.serg.websocketbrokerdemo.model.ClientState.currentPhase = "WAITING_FOR_ROLL"
+        at.aau.serg.websocketbrokerdemo.model.ClientState.currentPlayerIndex = 0
+        at.aau.serg.websocketbrokerdemo.model.ClientState.remainingMoves = 5
+
+        GameHandler.onEndTurn = { index ->
+            endTurnIndex = index
+        }
+
+        GameHandler.handle(
+            """{
+            "type": "CHEAT_RESULT",
+            "payload": {
+                "currentPhase": "WAITING_FOR_MOVE",
+                "currentPlayerIndex": 3,
+                "cheatDetected": true,
+                "targetPlayerId": "other",
+                "cheaters": [
+                    {
+                        "playerId": "p2",
+                        "cards": []
+                    }
+                ]
+            }
+        }"""
+        )
+
+        Assertions.assertEquals(
+            "WAITING_FOR_MOVE",
+            at.aau.serg.websocketbrokerdemo.model.ClientState.currentPhase
+        )
+        Assertions.assertEquals(3, at.aau.serg.websocketbrokerdemo.model.ClientState.currentPlayerIndex)
+        Assertions.assertEquals(0, at.aau.serg.websocketbrokerdemo.model.ClientState.remainingMoves)
+        Assertions.assertEquals(3, endTurnIndex)
+        Assertions.assertTrue(at.aau.serg.websocketbrokerdemo.model.ClientState.cheatUsed)
     }
 }
