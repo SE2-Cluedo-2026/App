@@ -28,7 +28,9 @@ class ShakeDetector(private val onShake: () -> Unit) : SensorEventListener {
         }
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        // Required override of SensorEventListener; accuracy changes are not relevant here
+    }
 
     companion object {
         private const val SHAKE_THRESHOLD = 12f
