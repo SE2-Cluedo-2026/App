@@ -18,7 +18,7 @@ import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
 import org.json.JSONObject
 
-private const val WEBSOCKET_URI = "ws://192.168.1.11:53211/CLUEDO"
+private const val WEBSOCKET_URI = "ws://se2-demo.aau.at:53211/CLUEDO"
 private const val LOBBY_DESTINATION = "/app/lobby"
 private const val GAME_DESTINATION = "/app/game"
 class MyStomp(val callbacks: Callbacks) {
