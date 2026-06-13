@@ -5,13 +5,6 @@ import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 
-/**
- * A minimal started Service whose only purpose is to detect when the user
- * swipes the app away from the recent-tasks screen.
- *
- * onTaskRemoved() is NOT available on Activity — only on Service.
- * Start this service when entering the lobby; stop it when leaving normally.
- */
 class DisconnectService : Service() {
 
     companion object {

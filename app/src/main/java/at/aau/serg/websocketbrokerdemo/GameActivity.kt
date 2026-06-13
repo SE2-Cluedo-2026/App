@@ -166,17 +166,14 @@ class GameActivity : ComponentActivity() {
         findViewById<Button>(R.id.btnAccuse).setOnClickListener { onAccuse() }
         findViewById<Button>(R.id.btnLeave).setOnClickListener { onLeaveGame() }
 
-        // Wait for gridOverlay to have real dimensions before setting up the board
         gridOverlay.viewTreeObserver.addOnGlobalLayoutListener(object :
             android.view.ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 if (gridOverlay.width > 0 && gridOverlay.height > 0) {
-                    // Remove listener immediately so setupBoard() is called exactly once
                     gridOverlay.viewTreeObserver.removeOnGlobalLayoutListener(this)
                     if (!boardSetupDone) {
                         boardSetupDone = true
                         setupBoard()
-                        // Re-apply positions that may have arrived before layout was ready
                         placeAllPlayerDots()
                         updateAllPlayerStatuses()
                         updateCurrentPlayerHighlight()
@@ -285,27 +282,11 @@ class GameActivity : ComponentActivity() {
         }
     }
 
-    /*
+
+
     private fun initializePlayerPositions() {
         val players = ClientState.players
         players.forEach { player ->
-            val charType = ClientState.playerCharacterMap[player.playerId] ?: player.character
-            val startPos = charType?.let { BoardConfig.CHARACTER_START_POSITIONS[it] }
-            if (startPos != null) {
-                ClientState.playerPositions[player.playerId] =
-                    "${startPos.first},${startPos.second}"
-            } else {
-                ClientState.playerPositions[player.playerId] = "6,4"
-            }
-        }
-    }
-
-
-     */
-    private fun initializePlayerPositions() {
-        val players = ClientState.players
-        players.forEach { player ->
-            // Nur setzen wenn noch KEINE Position bekannt ist (z.B. echter Neustart)
             if (!ClientState.playerPositions.containsKey(player.playerId)) {
                 val charType = ClientState.playerCharacterMap[player.playerId] ?: player.character
                 val startPos = charType?.let { BoardConfig.CHARACTER_START_POSITIONS[it] }
@@ -336,7 +317,6 @@ class GameActivity : ComponentActivity() {
 
         val phase = ClientState.currentPhase
 
-        // Problem 3 Fix: Do not auto-enter room. Send move command to door field.
         if (phase == "WAITING_FOR_MOVE" && ClientState.remainingMoves > 0) {
             MyStomp.instance.move("$col,$row")
         }
@@ -424,9 +404,6 @@ class GameActivity : ComponentActivity() {
         bgMusic?.release()
         bgMusic = null
         stopWaitingMusic()
-        // If the game is currently paused (another player is disconnected), send an explicit
-        // leaveLobby so the server treats this as an intentional leave and doesn't start
-        // an additional rejoin timer for us.
         if (pauseOverlay != null) {
             MyStomp.instance.leaveLobby()
         }
@@ -455,10 +432,8 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onMove = { playerId, position, movesLeft ->
             runOnUiThread {
-                // Update ALL players' dots (not just mine)
                 updatePlayerDot(playerId, position)
 
-                // Only update local room tracking for THIS player
                 if (playerId == ClientState.playerId) {
                     val parts = position.split(",")
                     if (parts.size == 2) {
@@ -467,7 +442,6 @@ class GameActivity : ComponentActivity() {
                         val room = BoardConfig.getRoomAtDoor(col, row)
 
                         if (room != null) {
-                            // Problem 3 Fix: Show dialog to enter room on door field
                             val freckleFace = try {
                                 ResourcesCompat.getFont(this, R.font.freckle_face) ?: android.graphics.Typeface.DEFAULT
                             } catch (e: Exception) {
@@ -549,7 +523,6 @@ class GameActivity : ComponentActivity() {
                                 rootLayout.removeView(overlay)
                             }
                         } else if (movesLeft == 0) {
-                            // No room at this position and no moves left — end turn automatically
                             MyStomp.instance.endTurn()
                         }
                     }
@@ -568,7 +541,6 @@ class GameActivity : ComponentActivity() {
                 updateButtonStates()
                 updateAllPlayerStatuses()
 
-                // Only show toast, do NOT trigger "your turn" UI for other players
                 val currentPlayer = ClientState.players.getOrNull(newIndex)
                 val msg = if (currentPlayer?.playerId == ClientState.playerId)
                     getString(R.string.your_turn) else getString(
@@ -582,7 +554,6 @@ class GameActivity : ComponentActivity() {
         GameHandler.onEnterRoom = { playerId, roomId ->
             runOnUiThread {
                 addActionMessage("🚪 ${playerDisplayName(playerId)} entered $roomId")
-                // Only update local room for THIS player
                 if (playerId == ClientState.playerId) {
                     currentRoomId = roomId
                     ClientState.currentPhase = "IN_ROOM"
@@ -599,7 +570,6 @@ class GameActivity : ComponentActivity() {
         GameHandler.onHiddenWay = { playerId, targetRoom ->
             runOnUiThread {
                 addActionMessage("${playerDisplayName(playerId)} used a hidden passage")
-                // Only update local state for THIS player
                 if (playerId == ClientState.playerId) {
                     currentRoomId = targetRoom
                     hiddenWayUsed = true
@@ -689,7 +659,6 @@ class GameActivity : ComponentActivity() {
                     runOnUiThread {
                         addActionMessage(
                             "🔎 ${playerDisplayName(accuserID)} made an accusation")
-                        // All players see the accusation cards
                         GameUIHelper.showResultCards(
                             this,
                             rootLayout,
@@ -717,7 +686,6 @@ class GameActivity : ComponentActivity() {
                                 "❌ ${playerDisplayName(accuserID)} was eliminated"
                             )
                             playSound(R.raw.player_eliminated_sound)
-                            // Only show elimination message, differentiate by playerId
                             if (accuserID == ClientState.playerId) {
                                 Toast.makeText(
                                     this,
@@ -837,12 +805,6 @@ class GameActivity : ComponentActivity() {
             }
         }
     }
-/*
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        super.onBackPressed()
-        onLeaveGame()
-    }*/
 
     override fun onDestroy() {
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
@@ -879,7 +841,6 @@ class GameActivity : ComponentActivity() {
         val cellW = gridW.toFloat() / BoardConfig.COLS
         val cellH = gridH.toFloat() / BoardConfig.ROWS
 
-        // Remove old dot from wherever it is
         playerDots[playerId]?.let {
             (it.parent as? ViewGroup)?.removeView(it)
         }
@@ -908,7 +869,6 @@ class GameActivity : ComponentActivity() {
             dot.layoutParams = dlp
             gridOverlay.addView(dot)
         } else {
-            // Problem 4 Fix: Room position using roomOverlay
             val roomOverlay = findViewById<ViewGroup>(R.id.roomOverlay) ?: return
 
             val playersInRoom = ClientState.playerPositions.filter { it.value == position }
@@ -1027,7 +987,7 @@ class GameActivity : ComponentActivity() {
 
         val overlay = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.argb(180, 0, 0, 0))
-            isClickable = true // block touches to game underneath
+            isClickable = true
         }
         val textView = TextView(this).apply {
             typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
@@ -1148,9 +1108,6 @@ class GameActivity : ComponentActivity() {
         })
         inner.addView(tvInfo)
 
-        /*inner.addView(tvInfo)
-        inner.addView(tvCountdown)
-        inner.addView(tvShake)*/
 
         overlay.addView(inner, android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,

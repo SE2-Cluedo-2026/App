@@ -74,7 +74,6 @@ object LobbyHandler {
                     val rejoinedPlayerId = payload.optString("playerId", "")
                     val isMe = rejoinedPlayerId == ClientState.playerId
 
-                    // Only the rejoining player restores their personal state
                     if (isMe) {
                         ClientState.myCharacter = payload.optString("myCharacter").takeIf { it.isNotEmpty() }
                         ClientState.isEliminated = payload.optBoolean("isEliminated", false)
@@ -94,7 +93,6 @@ object LobbyHandler {
                         ClientState.currentPhase = payload.optString("currentPhase", "")
                         ClientState.remainingMoves = payload.optInt("remainingMoves", 0)
 
-                        // Restore full state from server
                         val playersArray = payload.optJSONArray("players")
                         if (playersArray != null) {
                             val playerList = mutableListOf<ExistingPlayerDTO>()
@@ -137,8 +135,6 @@ object LobbyHandler {
                         val waitingForPlayer = payload.optBoolean("waitingForPlayer", false)
                         onPlayerRejoinedRunning?.invoke(waitingForPlayer)
                     }
-                    // Other clients: nothing to do — they already have their own state
-                    // The CONTINUE_GAME message (sent separately) will dismiss the pause overlay
                 }
 
                 LobbyMessageType.GAME_FULL -> {

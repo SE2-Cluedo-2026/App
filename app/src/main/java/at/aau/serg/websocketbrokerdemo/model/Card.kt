@@ -4,7 +4,6 @@ import com.example.myapplication.R
 data class Card (
 
     val cardId: String,
-   // val name: String,
     val imageResId: Int,
     )
 object CardRepository {

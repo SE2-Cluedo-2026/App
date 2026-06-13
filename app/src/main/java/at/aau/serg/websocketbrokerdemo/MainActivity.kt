@@ -41,7 +41,6 @@ class MainActivity : ComponentActivity(), Callbacks {
     override fun onStart() {
         super.onStart()
 
-        // Re-create MyStomp so we get a clean session on every (re-)visit
         myStomp = MyStomp(this)
 
         val loadingOverlay = findViewById<android.widget.FrameLayout>(R.id.loadingOverlay)
@@ -114,7 +113,6 @@ class MainActivity : ComponentActivity(), Callbacks {
     }
 
     override fun onConnected() {
-        // Handled via LobbyHandler.onLobbyJoined callback
     }
 
     override fun onConnectionFailed(reason: String) {

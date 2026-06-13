@@ -122,7 +122,6 @@ class GameHandler {
                                 val cardObj = cardsArray.getJSONObject(i)
                                 val cardName = cardObj.getString("name")
                                 matchingCards.add(cardName)
-                                // Auto-mark as seen
                                 if (suggesterID == ClientState.playerId) {
                                     ClientState.seenCards.add(cardName)
                                 }
@@ -159,7 +158,6 @@ class GameHandler {
                             }
                         }
                         onGameAborted?.invoke(reason)
-                        // Reset client state back to lobby
                         ClientState.gameStatus = "LOBBY"
                         ClientState.currentPhase = ""
                         ClientState.currentPlayerIndex = 0
@@ -172,7 +170,6 @@ class GameHandler {
                         ClientState.myCharacter = null
                         ClientState.seenCards.clear()
 
-                        // Restore available characters and players from payload if provided
                         if (payload != null) {
                             val availChars = payload.optJSONArray("availableCharacters")
                             if (availChars != null) {

@@ -250,7 +250,6 @@ class LobbyActivity : ComponentActivity() {
                 disconnectHandler.removeCallbacks(disconnectRunnable)
                 stopDisconnectService()
 
-                //MyStomp.instance.leaveLobby()
 
                 Handler(Looper.getMainLooper()).postDelayed({
                     MyStomp.instance.disconnect()
@@ -302,9 +301,6 @@ class LobbyActivity : ComponentActivity() {
         bgMusic?.stop()
         bgMusic?.release()
         bgMusic = null
-        // Only clear callbacks when the system destroys us (e.g. config change).
-        // When isLeaving is true, MainActivity is already setting up its own
-        // callbacks in onStart() — clearing here would null them out.
         if (!isLeaving) {
             LobbyHandler.onLobbyJoined = null
             LobbyHandler.onNewPlayerJoined = null

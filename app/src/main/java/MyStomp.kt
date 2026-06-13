@@ -18,7 +18,7 @@ import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
 import org.json.JSONObject
 
-private const val WEBSOCKET_URI = "ws://se2-demo.aau.at:53211/CLUEDO"
+private const val WEBSOCKET_URI = "ws://192.168.1.11:53211/CLUEDO"
 private const val LOBBY_DESTINATION = "/app/lobby"
 private const val GAME_DESTINATION = "/app/game"
 class MyStomp(val callbacks: Callbacks) {
@@ -46,7 +46,6 @@ class MyStomp(val callbacks: Callbacks) {
 
     fun connect() {
         Log.d("STOMP", "CONNECT called")
-        // Cancel any previous collectors before starting a fresh connection
         lobbyCollector?.cancel()
         lobbyCollector = null
         gameCollector?.cancel()
@@ -60,7 +59,6 @@ class MyStomp(val callbacks: Callbacks) {
                 activeSession = client.connect(WEBSOCKET_URI)
 
                 Log.d("STOMP", "CONNECTED -> session = $activeSession")
-                // connect to topic lobby-response
                 lobbyFlow = activeSession.subscribeText("/topic/lobby-response")
                 lobbyCollector = scope.launch {
                     try {
@@ -118,14 +116,12 @@ class MyStomp(val callbacks: Callbacks) {
     }
 
     fun disconnect() {
-        // Cancel collectors, but do NOT cancel the scope itself — we need it for reconnection.
         lobbyCollector?.cancel()
         lobbyCollector = null
         gameCollector?.cancel()
         gameCollector = null
         lobbyFlow = null
         gameFlow = null
-        // Close the STOMP session asynchronously
         scope.launch {
             try {
                 if (::activeSession.isInitialized) {

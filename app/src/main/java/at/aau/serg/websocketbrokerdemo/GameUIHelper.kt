@@ -70,18 +70,16 @@ object GameUIHelper {
         containerH: Int,
         items: List<String>
     ) {
-        // ── Tune these values to adjust placement ──────────────────────────
-        val markXPercent = 0.88f         // horizontal position (0.0 = left, 1.0 = right)
+        val markXPercent = 0.88f
 
-        val dotSizeDp = 8                // size of the "my card" dot in dp
-        val dotVerticalFactor = 0.5f     // 0.5 = center of row; lower = higher up
-        val dotHorizontalOffsetDp = 0    // extra horizontal nudge for dot (+ = right)
+        val dotSizeDp = 8
+        val dotVerticalFactor = 0.5f
+        val dotHorizontalOffsetDp = 0
 
-        val checkTextSizeSp = 10f        // font size of checkmark symbol
-        val checkVerticalFactor = 0.1f   // 0.5 = center of row; lower = higher up
-        val checkVerticalOffsetDp = 0    // extra vertical nudge for checkmark (+ = down)
-        val checkHorizontalOffsetDp = -6 // extra horizontal nudge for checkmark (+ = right)
-        // ───────────────────────────────────────────────────────────────────
+        val checkTextSizeSp = 10f
+        val checkVerticalFactor = 0.1f
+        val checkVerticalOffsetDp = 0
+        val checkHorizontalOffsetDp = -6
 
         container.removeAllViews()
         val rowH = containerH.toFloat() / items.size

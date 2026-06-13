@@ -6,18 +6,14 @@ object ClientState {
     var gameStatus: String = "LOBBY"
     var availableCharacters: List<String> = emptyList()
 
-    // Player
     var playerId: String = ""
     var myCards: List<String> = emptyList()
     var myCharacter: String? = null
 
-    // Checklist
     var seenCards: MutableSet<String> = mutableSetOf()
 
-    // Spielerliste
     var players: List<ExistingPlayerDTO> = emptyList()
 
-    // Gamestate
     var currentPlayerId: String = ""
 
     var remainingMoves: Int = 0
