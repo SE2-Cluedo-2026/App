@@ -22,4 +22,12 @@ class GameMessageTypeTest {
         Assertions.assertEquals(GameMessageType.ROLL_DICE, GameMessageType.valueOf("ROLL_DICE"))
         Assertions.assertEquals(GameMessageType.MOVE, GameMessageType.valueOf("MOVE"))
     }
+    @Test
+    fun `GameMessageType contains new cheat types`() {
+        val values = GameMessageType.values()
+        Assertions.assertTrue(values.contains(GameMessageType.SUGGESTION_REQUEST))
+        Assertions.assertTrue(values.contains(GameMessageType.CHEAT_ATTEMPT))
+        Assertions.assertTrue(values.contains(GameMessageType.CHEAT_BUTTON_PRESSED))
+        Assertions.assertTrue(values.contains(GameMessageType.CHEAT_RESULT))
+    }
 }

@@ -18,12 +18,12 @@ object BoardConfig {
     )
 
     val ROOM_CENTERS_PERCENT: Map<String, Pair<Float, Float>> = mapOf(
-        "KITCHEN" to Pair(0.12f, 0.15f),
-        "BALLROOM" to Pair(0.85f, 0.15f),
-        "LOUNGE" to Pair(0.12f, 0.50f),
-        "LIBRARY" to Pair(0.85f, 0.50f),
-        "STUDY" to Pair(0.12f, 0.85f),
-        "BILLIARDROOM" to Pair(0.85f, 0.85f)
+        "KITCHEN" to Pair(0.28f, 0.338f),
+        "BALLROOM" to Pair(0.675f, 0.338f),
+        "LOUNGE" to Pair(0.28f, 0.518f),
+        "LIBRARY" to Pair(0.675f, 0.518f),
+        "STUDY" to Pair(0.28f, 0.70f),
+        "BILLIARDROOM" to Pair(0.675f, 0.70f)
     )
 
     val HIDDEN_PASSAGES: Map<String, String> = mapOf(

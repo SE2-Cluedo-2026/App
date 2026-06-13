@@ -1,17 +1,23 @@
 package at.aau.serg.websocketbrokerdemo
 
+import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
-import android.content.Intent
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import at.aau.serg.websocketbrokerdemo.model.BoardColors
 import com.example.myapplication.R
 import at.aau.serg.websocketbrokerdemo.model.BoardConfig
@@ -23,7 +29,9 @@ class GameActivity : ComponentActivity() {
     private lateinit var boardImage: ImageView
     private lateinit var gridOverlay: ViewGroup
 
-    private lateinit var checklistOverlay: ViewGroup
+    private lateinit var suspectChecklistOverlay: ViewGroup
+    private lateinit var weaponChecklistOverlay: ViewGroup
+    private lateinit var roomChecklistOverlay: ViewGroup
     private lateinit var characterPanel: android.widget.LinearLayout
 
     private lateinit var dialogOverlay: ViewGroup
@@ -39,24 +47,109 @@ class GameActivity : ComponentActivity() {
     private lateinit var btnSuggest: Button
     private lateinit var btnAccuse: Button
     private lateinit var btnLeave: Button
-
+    private lateinit var actionLogContainer: android.widget.LinearLayout
     private val playerStatusViews = mutableMapOf<String, TextView>()
     private var pauseOverlay: View? = null
     private var countdownHandler: android.os.Handler? = null
     private var countdownRunnable: Runnable? = null
+    private var cheatWindowOverlay: View? = null
+    private var cheatDecisionOverlay: View? = null
+    private var cheatWindowHandler: android.os.Handler? = null
+    private var cheatWindowRunnable: Runnable? = null
+    private var cheatDecisionHandler: android.os.Handler? = null
+    private var cheatDecisionRunnable: Runnable? = null
+    private var sensorManager: android.hardware.SensorManager? = null
+    private var shakeDetector: ShakeDetector? = null
+    private var lastSuggestion = Triple("", "", "")
+    private var storedWinnerMsg = ""
+
+    private var bgMusic: MediaPlayer? = null
+    private var waitingMusic: MediaPlayer? = null
+
+    private var isLeaving = false
+    private val actionMessages = mutableListOf<String>()
+    private val bgDisconnectHandler = Handler(Looper.getMainLooper())
+    private val bgDisconnectRunnable = Runnable {
+        if (!isLeaving) {
+            isLeaving = true
+            stopDisconnectService()
+            MyStomp.instance.disconnect()
+            val intent = Intent(this, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+            finish()
+        }
+    }
+
+    private fun startDisconnectService() {
+        startService(Intent(this, DisconnectService::class.java).apply {
+            putExtra(DisconnectService.EXTRA_MODE, DisconnectService.MODE_GAME)
+        })
+    }
+
+    private fun stopDisconnectService() {
+        stopService(Intent(this, DisconnectService::class.java))
+    }
+
+    private fun playSound(resId: Int) {
+        val player = MediaPlayer.create(this, resId)
+        player?.start()
+        player?.setOnCompletionListener { it.release() }
+    }
+
+    private fun stopWaitingMusic() {
+        waitingMusic?.stop()
+        waitingMusic?.release()
+        waitingMusic = null
+    }
+    private fun addActionMessage(message: String) {
+        val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+            .format(java.util.Date())
+
+        actionMessages.add(0, "[$time] $message")
+
+        if (actionMessages.size > 5) {
+            actionMessages.removeAt(actionMessages.lastIndex)
+        }
+
+        actionLogContainer.removeAllViews()
+
+        for (msg in actionMessages) {
+            val tv = TextView(this).apply {
+                text = msg
+                setTextColor(getColor(R.color.cluedo_pink))
+                textSize = 9f
+                typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+                setSingleLine(true)
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(0, 1, 0, 1)
+            }
+            actionLogContainer.addView(tv)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
 
+        startDisconnectService()
+
+        bgMusic = MediaPlayer.create(this, R.raw.game_music)
+        bgMusic?.isLooping = true
+        bgMusic?.setVolume(0.1f, 0.1f)
+        bgMusic?.start()
+
         rootLayout = findViewById(R.id.rootGameLayout)
         boardImage = findViewById(R.id.imgBoard)
         gridOverlay = findViewById(R.id.gridOverlay)
-        checklistOverlay = findViewById(R.id.checklistOverlay)
+        suspectChecklistOverlay = findViewById(R.id.suspectChecklistOverlay)
+        weaponChecklistOverlay = findViewById(R.id.weaponChecklistOverlay)
+        roomChecklistOverlay = findViewById(R.id.roomChecklistOverlay)
         characterPanel = findViewById(R.id.characterPanel)
 
         dialogOverlay = findViewById(R.id.dialogOverlay)
+        actionLogContainer = findViewById(R.id.actionLogContainer)
 
         setupGameHandlers()
         initializePlayerPositions()
@@ -73,18 +166,18 @@ class GameActivity : ComponentActivity() {
         findViewById<Button>(R.id.btnAccuse).setOnClickListener { onAccuse() }
         findViewById<Button>(R.id.btnLeave).setOnClickListener { onLeaveGame() }
 
-        // Wait for gridOverlay to have real dimensions before setting up the board
         gridOverlay.viewTreeObserver.addOnGlobalLayoutListener(object :
             android.view.ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 if (gridOverlay.width > 0 && gridOverlay.height > 0) {
-                    // Remove listener immediately so setupBoard() is called exactly once
                     gridOverlay.viewTreeObserver.removeOnGlobalLayoutListener(this)
                     if (!boardSetupDone) {
                         boardSetupDone = true
                         setupBoard()
-                        // Re-apply positions that may have arrived before layout was ready
                         placeAllPlayerDots()
+                        updateAllPlayerStatuses()
+                        updateCurrentPlayerHighlight()
+                        updateButtonStates()
                     }
                 }
             }
@@ -93,6 +186,17 @@ class GameActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this) {
             onLeaveGame()
             finish()
+        }
+
+        if (intent.getBooleanExtra("waitingForPlayer", false)) {
+            rootLayout.post {
+                showPauseOverlay("", 30)
+                bgMusic?.pause()
+                stopWaitingMusic()
+                waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
+                waitingMusic?.isLooping = true
+                waitingMusic?.start()
+            }
         }
     }
 
@@ -106,21 +210,25 @@ class GameActivity : ComponentActivity() {
         val gridW = gridOverlay.width
         val gridH = gridOverlay.height
 
-        val cellW = gridW / BoardConfig.COLS
-        val cellH = gridH / BoardConfig.ROWS
+        val cellWf = gridW.toFloat() / BoardConfig.COLS
+        val cellHf = gridH.toFloat() / BoardConfig.ROWS
 
         gridOverlay.removeAllViews()
 
         for (row in 0 until BoardConfig.ROWS) {
             for (col in 0 until BoardConfig.COLS) {
                 val cell = View(this)
+                val cellLeft = (col * cellWf).toInt()
+                val cellTop = (row * cellHf).toInt()
+                val cellRight = ((col + 1) * cellWf).toInt()
+                val cellBottom = ((row + 1) * cellHf).toInt()
                 val clp =
-                    androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(cellW, cellH)
+                    androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(cellRight - cellLeft, cellBottom - cellTop)
                         .apply {
                             startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
                             topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                            leftMargin = col * cellW
-                            topMargin = row * cellH
+                            leftMargin = cellLeft
+                            topMargin = cellTop
                         }
                 cell.layoutParams = clp
                 cell.setBackgroundColor(Color.TRANSPARENT)
@@ -142,7 +250,7 @@ class GameActivity : ComponentActivity() {
         characterPanel.removeAllViews()
         characterHighlights.clear()
         playerStatusViews.clear()
-        characterPanel.setBackgroundColor(Color.argb(120, 0, 0, 0))
+        characterPanel.setBackgroundColor(Color.argb(0, 0, 0, 0))
         characterPanel.visibility = View.VISIBLE
 
         for (player in ClientState.players) {
@@ -162,7 +270,7 @@ class GameActivity : ComponentActivity() {
 
             val highlightView = itemView.findViewById<View>(R.id.viewActiveHighlight)
             val border = GradientDrawable()
-            border.setStroke(GameUIHelper.dpToPx(this, 3), Color.parseColor("#D12E7D"))
+            border.setStroke(GameUIHelper.dpToPx(this, 3), Color.parseColor("#F50057"))
             border.cornerRadius = GameUIHelper.dpToPx(this, 4).toFloat()
             border.setColor(Color.TRANSPARENT)
             highlightView.background = border
@@ -174,20 +282,19 @@ class GameActivity : ComponentActivity() {
         }
     }
 
+
+
     private fun initializePlayerPositions() {
         val players = ClientState.players
         players.forEach { player ->
-            val charType = ClientState.playerCharacterMap[player.playerId] ?: player.character
-            val startPos = charType?.let { BoardConfig.CHARACTER_START_POSITIONS[it] }
-            if (startPos != null) {
+            if (!ClientState.playerPositions.containsKey(player.playerId)) {
+                val charType = ClientState.playerCharacterMap[player.playerId] ?: player.character
+                val startPos = charType?.let { BoardConfig.CHARACTER_START_POSITIONS[it] }
                 ClientState.playerPositions[player.playerId] =
-                    "${startPos.first},${startPos.second}"
-            } else {
-                ClientState.playerPositions[player.playerId] = "6,4"
+                    if (startPos != null) "${startPos.first},${startPos.second}" else "6,4"
             }
         }
     }
-
     private fun onCellTapped(col: Int, row: Int) {
         if (!isMyTurn() || ClientState.isEliminated) return
 
@@ -210,7 +317,6 @@ class GameActivity : ComponentActivity() {
 
         val phase = ClientState.currentPhase
 
-        // Problem 3 Fix: Do not auto-enter room. Send move command to door field.
         if (phase == "WAITING_FOR_MOVE" && ClientState.remainingMoves > 0) {
             MyStomp.instance.move("$col,$row")
         }
@@ -247,7 +353,7 @@ class GameActivity : ComponentActivity() {
 
         dialogOverlay.visibility = View.VISIBLE
         GameUIHelper.showCardSelectionOverlay(
-            this, dialogOverlay, "SUGGESTION",
+            this, dialogOverlay, "MAKE A SUGGESTION",
             includeRooms = false,
             currentRoom = pos
         ) { suspect, room, weapon ->
@@ -264,19 +370,43 @@ class GameActivity : ComponentActivity() {
 
         dialogOverlay.visibility = View.VISIBLE
         GameUIHelper.showCardSelectionOverlay(
-            this, dialogOverlay, "ACCUSATION",
-            includeRooms = true,
-            currentRoom = null
+            this, dialogOverlay, "MAKE AN ACCUSATION",
+            includeRooms = false,
+            currentRoom = pos
         ) { suspect, room, weapon ->
             dialogOverlay.visibility = View.GONE
             MyStomp.instance.makeAccusation(suspect, room, weapon)
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        bgMusic?.pause()
+        if (!isLeaving) {
+            bgDisconnectHandler.postDelayed(bgDisconnectRunnable, 5000)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
+        if (waitingMusic == null) {
+            bgMusic?.start()
+        }
+    }
+
     private fun onLeaveGame() {
-        // Only disconnect — the server's SessionDisconnectEvent will start the 30-second
-        // pause/rejoin timer. Calling leaveLobby() before disconnect would race with
-        // the session closing and could bypass the rejoin logic entirely.
+        if (isLeaving) return
+        isLeaving = true
+        bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
+        stopDisconnectService()
+        bgMusic?.stop()
+        bgMusic?.release()
+        bgMusic = null
+        stopWaitingMusic()
+        if (pauseOverlay != null) {
+            MyStomp.instance.leaveLobby()
+        }
         MyStomp.instance.disconnect()
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -285,13 +415,15 @@ class GameActivity : ComponentActivity() {
     }
 
     private fun setupGameHandlers() {
-        GameHandler.onRollDice = { value, newPosition ->
+        GameHandler.onRollDice = { playerId, value, newPosition ->
             runOnUiThread {
+                addActionMessage("🎲 ${playerDisplayName(playerId)} rolled a $value")
+                playSound(R.raw.roll_dice_sound)
                 Toast.makeText(this, getString(R.string.dice_result, value), Toast.LENGTH_SHORT)
                     .show()
                 hiddenWayUsed = false
                 if (newPosition != null) {
-                    updatePlayerDot(ClientState.playerId, newPosition)
+                    updatePlayerDot(playerId, newPosition)
                 }
                 updateButtonStates()
                 updateAllPlayerStatuses()
@@ -300,10 +432,8 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onMove = { playerId, position, movesLeft ->
             runOnUiThread {
-                // Update ALL players' dots (not just mine)
                 updatePlayerDot(playerId, position)
 
-                // Only update local room tracking for THIS player
                 if (playerId == ClientState.playerId) {
                     val parts = position.split(",")
                     if (parts.size == 2) {
@@ -312,21 +442,88 @@ class GameActivity : ComponentActivity() {
                         val room = BoardConfig.getRoomAtDoor(col, row)
 
                         if (room != null) {
-                            // Problem 3 Fix: Show dialog to enter room on door field
-                            android.app.AlertDialog.Builder(this)
-                                .setTitle("Enter Room?")
-                                .setMessage("Do you want to enter the $room?")
-                                .setPositiveButton("Yes") { _, _ ->
-                                    MyStomp.instance.enterRoom(room)
-                                }
-                                .setNegativeButton("No") { _, _ ->
-                                    // Player chose not to enter — end turn if no moves left
-                                    if (movesLeft == 0) {
-                                        MyStomp.instance.endTurn()
-                                    }
-                                }
-                                .setCancelable(false)
-                                .show()
+                            val freckleFace = try {
+                                ResourcesCompat.getFont(this, R.font.freckle_face) ?: android.graphics.Typeface.DEFAULT
+                            } catch (e: Exception) {
+                                android.graphics.Typeface.DEFAULT
+                            }
+                            val cluedoPink = ContextCompat.getColor(this, R.color.cluedo_pink)
+
+                            val overlay = android.widget.FrameLayout(this).apply {
+                                setBackgroundColor(android.graphics.Color.argb(200, 20, 20, 20))
+                                isClickable = true
+                            }
+
+                            val inner = android.widget.LinearLayout(this).apply {
+                                orientation = android.widget.LinearLayout.VERTICAL
+                                gravity = android.view.Gravity.CENTER
+                                setPadding(48, 48, 48, 48)
+                            }
+
+                            val tvTitle = TextView(this).apply {
+                                text = "ENTER $room?"
+                                setTextColor(android.graphics.Color.WHITE)
+                                textSize = 22f
+                                typeface = freckleFace
+                                gravity = android.view.Gravity.CENTER
+                                setPadding(0, 0, 0, 12)
+                            }
+
+                            val tvMessage = TextView(this).apply {
+                                text = "DO YOU WANT TO ENTER THE $room?"
+                                setTextColor(cluedoPink)
+                                textSize = 16f
+                                typeface = freckleFace
+                                gravity = android.view.Gravity.CENTER
+                                setPadding(0, 0, 0, 24)
+                            }
+
+                            val btnNo = Button(this).apply {
+                                text = "NO"
+                                backgroundTintList = ColorStateList.valueOf(cluedoPink)
+                                setTextColor(android.graphics.Color.WHITE)
+                                typeface = freckleFace
+                            }
+                            val btnYes = Button(this).apply {
+                                text = "YES"
+                                backgroundTintList = ColorStateList.valueOf(cluedoPink)
+                                setTextColor(android.graphics.Color.WHITE)
+                                typeface = freckleFace
+                            }
+
+                            val btnRow = android.widget.LinearLayout(this).apply {
+                                orientation = android.widget.LinearLayout.HORIZONTAL
+                                gravity = android.view.Gravity.CENTER
+                            }
+                            btnRow.addView(btnNo, android.widget.LinearLayout.LayoutParams(
+                                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                            ).apply { marginEnd = GameUIHelper.dpToPx(this@GameActivity, 16) })
+                            btnRow.addView(btnYes)
+
+                            inner.addView(tvTitle)
+                            inner.addView(tvMessage)
+                            inner.addView(btnRow)
+
+                            overlay.addView(inner, android.widget.FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.WRAP_CONTENT,
+                                ViewGroup.LayoutParams.WRAP_CONTENT,
+                                android.view.Gravity.CENTER
+                            ))
+                            rootLayout.addView(overlay, ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            ))
+
+                            btnYes.setOnClickListener {
+                                MyStomp.instance.enterRoom(room)
+                                rootLayout.removeView(overlay)
+                            }
+                            btnNo.setOnClickListener {
+                                if (movesLeft == 0) MyStomp.instance.endTurn()
+                                rootLayout.removeView(overlay)
+                            }
+                        } else if (movesLeft == 0) {
+                            MyStomp.instance.endTurn()
                         }
                     }
                 }
@@ -344,7 +541,6 @@ class GameActivity : ComponentActivity() {
                 updateButtonStates()
                 updateAllPlayerStatuses()
 
-                // Only show toast, do NOT trigger "your turn" UI for other players
                 val currentPlayer = ClientState.players.getOrNull(newIndex)
                 val msg = if (currentPlayer?.playerId == ClientState.playerId)
                     getString(R.string.your_turn) else getString(
@@ -357,11 +553,15 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onEnterRoom = { playerId, roomId ->
             runOnUiThread {
-                // Only update local room for THIS player
+                addActionMessage("🚪 ${playerDisplayName(playerId)} entered $roomId")
                 if (playerId == ClientState.playerId) {
                     currentRoomId = roomId
+                    ClientState.currentPhase = "IN_ROOM"
+                    ClientState.remainingMoves = 0
                 }
+
                 updatePlayerDot(playerId, roomId)
+                updateCurrentPlayerHighlight()
                 updateButtonStates()
                 updateAllPlayerStatuses()
             }
@@ -369,7 +569,7 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onHiddenWay = { playerId, targetRoom ->
             runOnUiThread {
-                // Only update local state for THIS player
+                addActionMessage("${playerDisplayName(playerId)} used a hidden passage")
                 if (playerId == ClientState.playerId) {
                     currentRoomId = targetRoom
                     hiddenWayUsed = true
@@ -382,115 +582,239 @@ class GameActivity : ComponentActivity() {
 
         GameHandler.onSuggestionResult = { suggesterID, suspect, room, weapon, matchingCards ->
             runOnUiThread {
-                GameUIHelper.showSuggestionTimer(this, rootLayout) {
-                    // Only show matching cards to the SUGGESTER
-                    if (suggesterID == ClientState.playerId) {
-                        if (matchingCards.isNotEmpty()) {
-                            GameUIHelper.showResultCards(this, rootLayout, matchingCards)
-                        } else {
-                            Toast.makeText(
-                                this,
-                                getString(R.string.no_matching_cards),
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                dismissCheatOverlays()
+                if (suggesterID == ClientState.playerId) {
+                    lastSuggestion = Triple(suspect, room, weapon)
+                    if (matchingCards.isNotEmpty()) {
+                        ClientState.seenCards.addAll(matchingCards)
+                        GameUIHelper.showResultCards(this, rootLayout, matchingCards)
                         updateChecklist()
                     } else {
                         Toast.makeText(
                             this,
-                            getString(R.string.suggestion_made, "${suggesterID.take(8)}..."),
+                            getString(
+                                R.string.suggestion_made,
+                                playerDisplayName(suggesterID)
+                            ),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
+                    showCheatDecisionOverlay()
                 }
             }
         }
 
-        GameHandler.onAccusation = { accuserID, suspect, room, weapon, correct, eliminated ->
-            runOnUiThread {
-                // All players see the accusation cards
-                GameUIHelper.showResultCards(this, rootLayout, listOf(suspect, weapon, room), 3000)
-                if (correct) {
-                    val msg =
-                        if (accuserID == ClientState.playerId) getString(R.string.you_won) else getString(
-                            R.string.player_won,
-                            "${accuserID.take(8)}..."
+        GameHandler.onSuggestionRequest =
+            { suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards ->
+                runOnUiThread {
+                    addActionMessage(
+                        "💡 ${playerDisplayName(suggesterID)} made a suggestion")
+                    if (suggesterID != ClientState.playerId && !ClientState.isEliminated) {
+                        showCheatWindow(suggesterID, suspect, room, weapon, cheatWindowSeconds)
+                    }
+                }
+            }
+
+            GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard, cheatPressed ->
+                runOnUiThread {
+                    dismissCheatOverlays()
+
+                    if (cheatDetected) {
+                        if (cheaters.any { it.first == ClientState.playerId }) {
+                            ClientState.cheatUsed = true
+                        }
+                        val allCards = cheaters.flatMap { it.second }
+
+                        val suggestionCards = listOf(lastSuggestion.first, lastSuggestion.second, lastSuggestion.third)
+                            .filter { it.isNotEmpty() }
+
+                        val penaltyCard = allCards.firstOrNull { it !in ClientState.seenCards }
+                            ?: allCards.firstOrNull()
+
+                        val cardsToShow = (suggestionCards + listOfNotNull(penaltyCard)).distinct()
+                        ClientState.seenCards.addAll(cardsToShow)
+
+                        val msg = "Cheat detected! Cards: ${cardsToShow.joinToString(", ")}"
+                        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+
+                        if (cardsToShow.isNotEmpty()) {
+                            GameUIHelper.showResultCards(this, rootLayout, cardsToShow, 5000)
+                        }
+                    } else if (cheatPressed) {
+                        val msg = if (revealedCard != null)
+                            "Suggester revealed: $revealedCard"
+                        else
+                            "No cheat detected."
+                        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                    }
+                    updateChecklist()
+                    updateCurrentPlayerHighlight()
+                    updateButtonStates()
+                    updateAllPlayerStatuses()
+                }
+            }
+
+            GameHandler.onAccusation =
+                { accuserID, suspect, room, weapon, correct, eliminated ->
+                    runOnUiThread {
+                        addActionMessage(
+                            "🔎 ${playerDisplayName(accuserID)} made an accusation")
+                        GameUIHelper.showResultCards(
+                            this,
+                            rootLayout,
+                            listOf(suspect, weapon, room),
+                            3000
                         )
-                    android.os.Handler(mainLooper).postDelayed({
-                        GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
-                    }, 3500)
-                } else if (eliminated) {
-                    // Only show elimination message, differentiate by playerId
-                    if (accuserID == ClientState.playerId) {
-                        Toast.makeText(
-                            this,
-                            getString(R.string.wrong_accusation),
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else {
-                        Toast.makeText(
-                            this,
-                            getString(R.string.player_eliminated, "${accuserID.take(8)}..."),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        if (correct) {
+                            storedWinnerMsg = if (accuserID == ClientState.playerId) getString(R.string.you_won)
+                                              else getString(R.string.player_won, playerDisplayName(accuserID))
+                            bgMusic?.stop()
+                            bgMusic?.release()
+                            bgMusic = null
+                            playSound(R.raw.win_sound)
+                            android.os.Handler(mainLooper).postDelayed({
+                                GameUIHelper.showGameEndOverlay(this, rootLayout, storedWinnerMsg, isWin = true)
+                                android.os.Handler(mainLooper).postDelayed({
+                                    val intent = Intent(this, LobbyActivity::class.java)
+                                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                    startActivity(intent)
+                                    finish()
+                                }, 5000)
+                            }, 3500)
+                        } else if (eliminated) {
+                            addActionMessage(
+                                "❌ ${playerDisplayName(accuserID)} was eliminated"
+                            )
+                            playSound(R.raw.player_eliminated_sound)
+                            if (accuserID == ClientState.playerId) {
+                                Toast.makeText(
+                                    this,
+                                    getString(R.string.wrong_accusation),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    this,
+                                    getString(
+                                        R.string.player_eliminated,
+                                        playerDisplayName(accuserID)
+                                    ),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
+
+            GameHandler.onGameFinished = { winner ->
+                runOnUiThread {
+                    if (storedWinnerMsg.isEmpty()) {
+                        bgMusic?.stop()
+                        bgMusic?.release()
+                        bgMusic = null
+                        playSound(R.raw.win_sound)
+                        val msg = if (winner == ClientState.playerId) getString(R.string.you_won)
+                                  else getString(R.string.player_won, playerDisplayName(winner))
+                        GameUIHelper.showGameEndOverlay(this, rootLayout, msg, isWin = true)
+                        android.os.Handler(mainLooper).postDelayed({
+                            val intent = Intent(this, LobbyActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                            finish()
+                        }, 5000)
                     }
                 }
             }
-        }
 
-        GameHandler.onGameFinished = { winner ->
-            runOnUiThread {
-                val msg =
-                    if (winner == ClientState.playerId) getString(R.string.you_won) else getString(
-                        R.string.player_won,
-                        "${winner.take(8)}..."
+            GameHandler.onGamePaused = { disconnectedId, countdown ->
+                runOnUiThread {
+                    showPauseOverlay(disconnectedId, countdown)
+                    bgMusic?.pause()
+                    val leavePlayer = MediaPlayer.create(this, R.raw.ingame_leave_sound)
+                    leavePlayer?.setOnCompletionListener {
+                        it.release()
+                        stopWaitingMusic()
+                        waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
+                        waitingMusic?.isLooping = true
+                        waitingMusic?.start()
+                    }
+                    leavePlayer?.start()
+                }
+            }
+
+            GameHandler.onContinueGame = { rejoinedId, waitingForPlayer ->
+                runOnUiThread {
+                    if (!waitingForPlayer) {
+                        dismissPauseOverlay()
+                        stopWaitingMusic()
+                        bgMusic?.start()
+                        Toast.makeText(
+                            this,
+                            "All Players rejoined!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    playSound(R.raw.player_returned_sound)
+                    if(waitingForPlayer) Toast.makeText(
+                        this,
+                        "A Player rejoined!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    updateAllPlayerStatuses()
+                    updateCurrentPlayerHighlight()
+                    updateButtonStates()
+                }
+            }
+
+            GameHandler.onGameAborted = { reason ->
+                runOnUiThread {
+                    if (reason == "Game finished — returning to lobby") return@runOnUiThread
+                    if (storedWinnerMsg.isNotEmpty()) return@runOnUiThread
+                    stopWaitingMusic()
+                    bgMusic?.stop()
+                    bgMusic?.release()
+                    bgMusic = null
+                    playSound(R.raw.game_over_sound)
+                    val displayReason = replacePlayerIdsWithNames(reason)
+                    GameUIHelper.showGameEndOverlay(
+                        this,
+                        rootLayout,
+                        getString(R.string.game_over, displayReason),
+                        isWin = false
                     )
-                GameUIHelper.showGameEndOverlay(this, rootLayout, msg)
+                    android.os.Handler(mainLooper).postDelayed({
+                        val intent = Intent(this, LobbyActivity::class.java)
+                        intent.flags =
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                        startActivity(intent)
+                        finish()
+                    }, 3000)
+                }
             }
-        }
 
-        GameHandler.onGamePaused = { disconnectedId, countdown ->
-            runOnUiThread {
-                showPauseOverlay(disconnectedId, countdown)
-            }
-        }
-
-        GameHandler.onContinueGame = { rejoinedId ->
-            runOnUiThread {
-                dismissPauseOverlay()
-                Toast.makeText(this,
-                    "Player rejoined! Game resumed.",
-                    Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        GameHandler.onGameAborted = { reason ->
-            runOnUiThread {
-                GameUIHelper.showGameEndOverlay(this, rootLayout, getString(R.string.game_over, reason))
-                android.os.Handler(mainLooper).postDelayed({
-                    val intent = Intent(this, LobbyActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                    startActivity(intent)
-                    finish()
-                }, 3000)
-            }
-        }
-
-        GameHandler.onGameError = { reason ->
-            runOnUiThread {
-                Toast.makeText(this, reason, Toast.LENGTH_SHORT).show()
+            GameHandler.onGameError = { reason ->
+                runOnUiThread {
+                    val userMessage = when {
+                        reason.contains("not your turn", ignoreCase = true) -> "It's not your turn."
+                        reason.contains("not in roll phase", ignoreCase = true) -> "You need to roll the dice first."
+                        reason.contains("not running", ignoreCase = true) -> "The game has not started yet."
+                        reason.contains("not found", ignoreCase = true) -> "Player not found on the server."
+                        else -> "Game error: $reason"
+                    }
+                    Toast.makeText(this, userMessage, Toast.LENGTH_LONG).show()
             }
         }
     }
-/*
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        super.onBackPressed()
-        onLeaveGame()
-    }*/
 
     override fun onDestroy() {
+        bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
+        stopDisconnectService()
+        bgMusic?.stop()
+        bgMusic?.release()
+        bgMusic = null
+        stopWaitingMusic()
         dismissPauseOverlay()
+        dismissCheatOverlays()
         GameHandler.onRollDice = null
         GameHandler.onMove = null
         GameHandler.onEndTurn = null
@@ -498,6 +822,8 @@ class GameActivity : ComponentActivity() {
         GameHandler.onHiddenWay = null
         GameHandler.onAccusation = null
         GameHandler.onSuggestionResult = null
+        GameHandler.onSuggestionRequest = null
+        GameHandler.onCheatResult = null
         GameHandler.onGameFinished = null
         GameHandler.onGameAborted = null
         GameHandler.onGamePaused = null
@@ -512,10 +838,9 @@ class GameActivity : ComponentActivity() {
         val gridH = gridOverlay.height
         if (gridW == 0 || gridH == 0) return
 
-        val cellW = gridW / BoardConfig.COLS
-        val cellH = gridH / BoardConfig.ROWS
+        val cellW = gridW.toFloat() / BoardConfig.COLS
+        val cellH = gridH.toFloat() / BoardConfig.ROWS
 
-        // Remove old dot from wherever it is
         playerDots[playerId]?.let {
             (it.parent as? ViewGroup)?.removeView(it)
         }
@@ -523,8 +848,11 @@ class GameActivity : ComponentActivity() {
         val charType = ClientState.playerCharacterMap[playerId]
             ?: ClientState.players.find { it.playerId == playerId }?.character
         val color = BoardColors.CHARACTER_COLORS[charType] ?: Color.GRAY
-        val dot = GameUIHelper.createPlayerDot(this, color)
-        val dotSize = GameUIHelper.dpToPx(this, 16)
+        val dotSize = (cellW * 0.75f).toInt().coerceIn(
+            GameUIHelper.dpToPx(this, 8),
+            GameUIHelper.dpToPx(this, 20)
+        )
+        val dot = GameUIHelper.createPlayerDotPx(this, color, dotSize)
 
         if (position.contains(",")) {
             val parts = position.split(",")
@@ -535,13 +863,12 @@ class GameActivity : ComponentActivity() {
                     .apply {
                         startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
                         topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                        leftMargin = col * cellW + (cellW - dotSize) / 2
-                        topMargin = row * cellH + (cellH - dotSize) / 2
+                        leftMargin = (col * cellW + (cellW - dotSize) / 2).toInt()
+                        topMargin = (row * cellH + (cellH - dotSize) / 2).toInt()
                     }
             dot.layoutParams = dlp
             gridOverlay.addView(dot)
         } else {
-            // Problem 4 Fix: Room position using roomOverlay
             val roomOverlay = findViewById<ViewGroup>(R.id.roomOverlay) ?: return
 
             val playersInRoom = ClientState.playerPositions.filter { it.value == position }
@@ -576,10 +903,22 @@ class GameActivity : ComponentActivity() {
     }
 
     private fun updateChecklist() {
-        checklistOverlay.post {
-            GameUIHelper.buildChecklistOverlay(
-                this, checklistOverlay,
-                checklistOverlay.width, checklistOverlay.height
+        suspectChecklistOverlay.post {
+            GameUIHelper.buildSuspectChecklistOverlay(
+                this, suspectChecklistOverlay,
+                suspectChecklistOverlay.width, suspectChecklistOverlay.height
+            )
+        }
+        weaponChecklistOverlay.post {
+            GameUIHelper.buildWeaponChecklistOverlay(
+                this, weaponChecklistOverlay,
+                weaponChecklistOverlay.width, weaponChecklistOverlay.height
+            )
+        }
+        roomChecklistOverlay.post {
+            GameUIHelper.buildRoomChecklistOverlay(
+                this, roomChecklistOverlay,
+                roomChecklistOverlay.width, roomChecklistOverlay.height
             )
         }
     }
@@ -622,15 +961,37 @@ class GameActivity : ComponentActivity() {
         btn.isClickable = active
     }
 
+    private fun playerDisplayName(playerId: String): String {
+        return ClientState.playerCharacterMap[playerId]
+            ?: ClientState.players.find { it.playerId == playerId }?.character
+            ?: "Unknown Player"
+    }
+
+    private fun replacePlayerIdsWithNames(text: String): String {
+        var result = text
+
+        ClientState.players.forEach { player ->
+            val name = playerDisplayName(player.playerId)
+            result = result.replace(player.playerId, name)
+        }
+
+        ClientState.playerCharacterMap.forEach { (playerId, characterName) ->
+            result = result.replace(playerId, characterName)
+        }
+
+        return result
+    }
+
     private fun showPauseOverlay(disconnectedId: String, countdown: Int) {
         dismissPauseOverlay()
 
         val overlay = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.argb(180, 0, 0, 0))
-            isClickable = true // block touches to game underneath
+            isClickable = true
         }
         val textView = TextView(this).apply {
-            setTextColor(Color.WHITE)
+            typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+            setTextColor(android.graphics.Color.WHITE)
             textSize = 20f
             gravity = android.view.Gravity.CENTER
         }
@@ -649,7 +1010,7 @@ class GameActivity : ComponentActivity() {
             override fun run() {
                 if (remaining > 0) {
                     textView.text = getString(R.string.player_disconnected_countdown,
-                        disconnectedId.take(8), remaining)
+                        playerDisplayName(disconnectedId), remaining)
                     remaining--
                     handler.postDelayed(this, 1000)
                 }
@@ -666,6 +1027,245 @@ class GameActivity : ComponentActivity() {
         countdownHandler = null
         pauseOverlay?.let { rootLayout.removeView(it) }
         pauseOverlay = null
+    }
+
+    private fun showCheatWindow(
+        suggesterID: String,
+        suspect: String,
+        room: String,
+        weapon: String,
+        windowSeconds: Int
+    ) {
+        dismissCheatOverlays()
+
+        val cluedoPink = ContextCompat.getColor(this, R.color.cluedo_pink)
+
+        val overlay = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.argb(200, 0, 0, 0))
+            isClickable = true
+        }
+
+        val inner = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(48, 48, 48, 48)
+        }
+
+        val tvInfo = TextView(this).apply {
+            text = "${playerDisplayName(suggesterID)} suggests:\n$suspect, $room, $weapon"
+            typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 18f
+            gravity = android.view.Gravity.CENTER
+        }
+
+        val tvCountdown = TextView(this).apply {
+            text = "CHEAT WINDOW: ${windowSeconds}s"
+            typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 22f
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 14, 0, 18)
+        }
+
+        val tvShake = TextView(this).apply {
+            text = if (ClientState.cheatUsed) "CHEAT ALREADY USED!" else "SHAKE TO CHEAT!"
+            typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+            setTextColor(if (ClientState.cheatUsed) android.graphics.Color.DKGRAY
+            else ContextCompat.getColor(this@GameActivity, R.color.cluedo_pink))
+            textSize = 18f
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 16, 0, 16)
+        }
+
+        if (!ClientState.cheatUsed) {
+            sensorManager = getSystemService(SENSOR_SERVICE) as android.hardware.SensorManager
+            shakeDetector = ShakeDetector {
+                runOnUiThread {
+                    MyStomp.instance.sendCheatAttempt()
+                    tvShake.text = "CHEAT SENT!"
+                    tvShake.typeface = ResourcesCompat.getFont(this@GameActivity, R.font.freckle_face)
+                    tvShake.setTextColor(android.graphics.Color.GREEN)
+                    stopShakeDetector()
+                }
+            }
+            val accelerometer = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+            sensorManager?.registerListener(shakeDetector, accelerometer, android.hardware.SensorManager.SENSOR_DELAY_UI)
+        }
+
+        val divider = View(this).apply {
+            setBackgroundColor(android.graphics.Color.argb(80, 255, 255, 255))
+        }
+
+        inner.addView(tvCountdown)
+        inner.addView(tvShake)
+        inner.addView(divider, android.widget.LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            GameUIHelper.dpToPx(this, 1)
+        ).apply {
+            topMargin = GameUIHelper.dpToPx(this@GameActivity, 16)
+            bottomMargin = GameUIHelper.dpToPx(this@GameActivity, 16)
+        })
+        inner.addView(tvInfo)
+
+
+        overlay.addView(inner, android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.CENTER
+        ))
+        rootLayout.addView(overlay, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        cheatWindowOverlay = overlay
+
+        var remaining = windowSeconds
+        cheatWindowHandler = android.os.Handler(mainLooper)
+        cheatWindowRunnable = object : Runnable {
+            override fun run() {
+                if (remaining > 0) {
+                    tvCountdown.text = "CHEAT WINDOW: ${remaining}s"
+                    remaining--
+                    cheatWindowHandler?.postDelayed(this, 1000)
+                } else {
+                    dismissCheatOverlays()
+                }
+            }
+        }
+        cheatWindowHandler?.post(cheatWindowRunnable!!)
+    }
+
+    private fun showCheatDecisionOverlay() {
+        dismissCheatOverlays()
+
+        val cluedoPink = ContextCompat.getColor(this, R.color.cluedo_pink)
+
+        val freckleFace = try {
+            ResourcesCompat.getFont(this, R.font.freckle_face)
+                ?: android.graphics.Typeface.DEFAULT
+        } catch (e: Exception) {
+            android.graphics.Typeface.DEFAULT
+        }
+
+        val overlay = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.argb(200, 20, 20, 20))
+            isClickable = true
+        }
+
+        val inner = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(48, 48, 48, 48)
+        }
+
+        val tvInfo = TextView(this).apply {
+            text = "DID SOMEONE CHEAT?"
+            setTextColor(cluedoPink)
+            textSize = 22f
+            typeface = freckleFace
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 0, 0, 28)
+        }
+
+        val tvCountdown = TextView(this).apply {
+            text = "YOU HAVE 5 SECONDS TO DECIDE..."
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 18f
+            typeface = freckleFace
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 0, 0, 16)
+        }
+
+        val btnYes = Button(this).apply {
+            text = "YES, SOMEONE CHEATED!"
+            backgroundTintList = ColorStateList.valueOf(cluedoPink)
+            setTextColor(android.graphics.Color.WHITE)
+            typeface = freckleFace
+        }
+
+        val btnNo = Button(this).apply {
+            text = "NOBODY CHEATED!"
+            backgroundTintList = ColorStateList.valueOf(cluedoPink)
+            setTextColor(android.graphics.Color.WHITE)
+            typeface = freckleFace
+        }
+
+        val sendDecision = { pressed: Boolean ->
+            MyStomp.instance.sendCheatButtonPressed(pressed)
+            dismissCheatOverlays()
+        }
+
+        btnYes.setOnClickListener { sendDecision(true) }
+        btnNo.setOnClickListener { sendDecision(false) }
+
+        val buttonRow = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER
+        }
+
+        buttonRow.addView(btnYes, android.widget.LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+        ).apply { marginEnd = GameUIHelper.dpToPx(this@GameActivity, 8) })
+
+        buttonRow.addView(btnNo, android.widget.LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+        ).apply { marginStart = GameUIHelper.dpToPx(this@GameActivity, 8) })
+
+        inner.addView(tvInfo)
+        inner.addView(tvCountdown)
+        inner.addView(buttonRow)
+
+        overlay.addView(inner, android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.CENTER
+        ))
+        rootLayout.addView(overlay, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        cheatDecisionOverlay = overlay
+
+        cheatDecisionHandler = android.os.Handler(mainLooper)
+        cheatDecisionRunnable = Runnable {
+            if (cheatDecisionOverlay != null) {
+                sendDecision(false)
+            }
+        }
+        cheatDecisionHandler?.postDelayed(cheatDecisionRunnable!!, 3000)
+    }
+
+    private fun dismissCheatOverlays() {
+        stopShakeDetector()
+
+        cheatWindowRunnable?.let { cheatWindowHandler?.removeCallbacks(it) }
+        cheatWindowRunnable = null
+        cheatWindowHandler = null
+
+        cheatDecisionRunnable?.let { cheatDecisionHandler?.removeCallbacks(it) }
+        cheatDecisionRunnable = null
+        cheatDecisionHandler = null
+
+        cheatWindowOverlay?.let {
+            if (it.parent != null) {
+                rootLayout.removeView(it)
+            }
+        }
+        cheatWindowOverlay = null
+
+        cheatDecisionOverlay?.let {
+            if (it.parent != null) {
+                rootLayout.removeView(it)
+            }
+        }
+        cheatDecisionOverlay = null
+    }
+
+    private fun stopShakeDetector() {
+        sensorManager?.unregisterListener(shakeDetector)
+        sensorManager = null
+        shakeDetector = null
     }
 
     private fun updateAllPlayerStatuses() {

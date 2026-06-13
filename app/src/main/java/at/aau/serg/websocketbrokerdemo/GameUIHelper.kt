@@ -1,6 +1,7 @@
 package at.aau.serg.websocketbrokerdemo
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
@@ -19,8 +20,11 @@ import at.aau.serg.websocketbrokerdemo.model.CardRepository
 import at.aau.serg.websocketbrokerdemo.model.ClientState
 import com.example.myapplication.R
 import androidx.core.graphics.toColorInt
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 
 object GameUIHelper {
+    private val colorNum = "#E91E63"
 
     fun dpToPx(context: Context, dp: Int): Int {
         return TypedValue.applyDimension(
@@ -30,82 +34,93 @@ object GameUIHelper {
         ).toInt()
     }
 
-    fun createPlayerDot(context: Context, color: Int, sizeDp: Int = 16): View {
+    fun createPlayerDot(context: Context, color: Int, sizeDp: Int = 16): View =
+        createPlayerDotPx(context, color, dpToPx(context, sizeDp))
+
+    fun createPlayerDotPx(context: Context, color: Int, sizePx: Int): View {
         val dot = View(context)
-        val size = dpToPx(context, sizeDp)
-        dot.layoutParams = ConstraintLayout.LayoutParams(size, size).apply {
+        dot.layoutParams = ConstraintLayout.LayoutParams(sizePx, sizePx).apply {
             startToStart = ConstraintSet.PARENT_ID
             topToTop = ConstraintSet.PARENT_ID
         }
         val shape = GradientDrawable()
         shape.shape = GradientDrawable.OVAL
         shape.setColor(color)
-        shape.setStroke(2, Color.WHITE)
+        shape.setStroke(2, Color.BLACK)
         dot.background = shape
         return dot
     }
 
-    fun buildChecklistOverlay(
+    fun buildSuspectChecklistOverlay(context: Context, container: ViewGroup, containerW: Int, containerH: Int) {
+        buildSectionOverlay(context, container, containerW, containerH, BoardConfig.CHECKLIST_SUSPECTS)
+    }
+
+    fun buildWeaponChecklistOverlay(context: Context, container: ViewGroup, containerW: Int, containerH: Int) {
+        buildSectionOverlay(context, container, containerW, containerH, BoardConfig.CHECKLIST_WEAPONS)
+    }
+
+    fun buildRoomChecklistOverlay(context: Context, container: ViewGroup, containerW: Int, containerH: Int) {
+        buildSectionOverlay(context, container, containerW, containerH, BoardConfig.CHECKLIST_ROOMS)
+    }
+
+    private fun buildSectionOverlay(
         context: Context,
         container: ViewGroup,
         containerW: Int,
-        containerH: Int
+        containerH: Int,
+        items: List<String>
     ) {
-        container.removeAllViews()
-        val allItems =
-            BoardConfig.CHECKLIST_SUSPECTS + BoardConfig.CHECKLIST_WEAPONS + BoardConfig.CHECKLIST_ROOMS
-        val headerCount = 3
-        val totalRows = allItems.size + headerCount + 1
-        val rowH = containerH.toFloat() / (totalRows + 1)
-        val startY = rowH * 1.4f
-        var idx = 0
-        var currentY = startY
+        val markXPercent = 0.88f
 
-        for (section in listOf(
-            BoardConfig.CHECKLIST_SUSPECTS,
-            BoardConfig.CHECKLIST_WEAPONS,
-            BoardConfig.CHECKLIST_ROOMS
-        )) {
-            currentY += rowH
-            for (item in section) {
-                val markX = (containerW * 0.88f).toInt()
-                val markY = currentY.toInt()
-                if (ClientState.myCards.contains(item)) {
-                    val dot = View(context)
-                    val dotSize = dpToPx(context, 8)
-                    val lp = ConstraintLayout.LayoutParams(dotSize, dotSize).apply {
-                        startToStart = ConstraintSet.PARENT_ID
-                        topToTop = ConstraintSet.PARENT_ID
-                        leftMargin = markX - dotSize / 2
-                        topMargin = markY + (rowH / 2).toInt() - dotSize / 2
-                    }
-                    dot.layoutParams = lp
-                    val shape = GradientDrawable()
-                    shape.shape = GradientDrawable.OVAL
-                    shape.setColor("#E91E63".toColorInt())
-                    dot.background = shape
-                    container.addView(dot)
+        val dotSizeDp = 8
+        val dotVerticalFactor = 0.5f
+        val dotHorizontalOffsetDp = 0
+
+        val checkTextSizeSp = 10f
+        val checkVerticalFactor = 0.1f
+        val checkVerticalOffsetDp = 0
+        val checkHorizontalOffsetDp = -6
+
+        container.removeAllViews()
+        val rowH = containerH.toFloat() / items.size
+        var currentY = 0f
+
+        for (item in items) {
+            val markX = (containerW * markXPercent).toInt()
+            if (ClientState.myCards.contains(item)) {
+                val dot = View(context)
+                val dotSize = dpToPx(context, dotSizeDp)
+                val lp = ConstraintLayout.LayoutParams(dotSize, dotSize).apply {
+                    startToStart = ConstraintSet.PARENT_ID
+                    topToTop = ConstraintSet.PARENT_ID
+                    leftMargin = markX - dotSize / 2 + dpToPx(context, dotHorizontalOffsetDp)
+                    topMargin = (currentY + rowH * dotVerticalFactor).toInt() - dotSize / 2
                 }
-                if (ClientState.seenCards.contains(item) && !ClientState.myCards.contains(item)) {
-                    val check = TextView(context)
-                    check.text = context.getString(R.string.checkmark)
-                    check.setTextColor("#E91E63".toColorInt())
-                    check.textSize = 10f
-                    val lp = ConstraintLayout.LayoutParams(
-                        ConstraintLayout.LayoutParams.WRAP_CONTENT,
-                        ConstraintLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        startToStart = ConstraintSet.PARENT_ID
-                        topToTop = ConstraintSet.PARENT_ID
-                        leftMargin = markX - dpToPx(context, 6)
-                        topMargin = markY + (rowH / 2).toInt() + dpToPx(context, 2)
-                    }
-                    check.layoutParams = lp
-                    container.addView(check)
-                }
-                currentY += rowH
-                idx++
+                dot.layoutParams = lp
+                val shape = GradientDrawable()
+                shape.shape = GradientDrawable.OVAL
+                shape.setColor(colorNum.toColorInt())
+                dot.background = shape
+                container.addView(dot)
             }
+            if (ClientState.seenCards.contains(item) && !ClientState.myCards.contains(item)) {
+                val check = TextView(context)
+                check.text = context.getString(R.string.checkmark)
+                check.setTextColor(colorNum.toColorInt())
+                check.textSize = checkTextSizeSp
+                val lp = ConstraintLayout.LayoutParams(
+                    ConstraintLayout.LayoutParams.WRAP_CONTENT,
+                    ConstraintLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    startToStart = ConstraintSet.PARENT_ID
+                    topToTop = ConstraintSet.PARENT_ID
+                    leftMargin = markX + dpToPx(context, checkHorizontalOffsetDp)
+                    topMargin = (currentY + rowH * checkVerticalFactor).toInt() + dpToPx(context, checkVerticalOffsetDp)
+                }
+                check.layoutParams = lp
+                container.addView(check)
+            }
+            currentY += rowH
         }
     }
 
@@ -144,8 +159,9 @@ object GameUIHelper {
 
         val titleView = TextView(context)
         titleView.text = title
-        titleView.setTextColor(Color.WHITE)
-        titleView.textSize = 18f
+        titleView.setTextColor(ContextCompat.getColor(context, R.color.cluedo_pink))
+        titleView.textSize = 22f
+        titleView.typeface = ResourcesCompat.getFont(context, R.font.freckle_face)
         titleView.gravity = Gravity.CENTER
         titleView.setPadding(0, dpToPx(context, 4), 0, dpToPx(context, 8))
         content.addView(titleView)
@@ -161,7 +177,13 @@ object GameUIHelper {
         ): LinearLayout {
             val sectionLabel = TextView(context)
             sectionLabel.text = label
-            sectionLabel.setTextColor("#E91E63".toColorInt())
+            sectionLabel.setTextColor(ContextCompat.getColor(context, R.color.cluedo_pink))
+            sectionLabel.typeface = ResourcesCompat.getFont(context, R.font.freckle_face)
+            sectionLabel.gravity = Gravity.CENTER
+            sectionLabel.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
             sectionLabel.textSize = 14f
             sectionLabel.setPadding(0, dpToPx(context, 4), 0, dpToPx(context, 2))
             content.addView(sectionLabel)
@@ -218,6 +240,10 @@ object GameUIHelper {
 
         val btnConfirm = Button(context)
         btnConfirm.text = context.getString(R.string.confirm)
+        btnConfirm.setTextColor(Color.WHITE)
+        btnConfirm.typeface = ResourcesCompat.getFont(context, R.font.freckle_face)
+        btnConfirm.isAllCaps = false
+        btnConfirm.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(context, R.color.cluedo_pink))
         btnConfirm.setOnClickListener {
             val s = selectedSuspect
             val w = selectedWeapon
@@ -231,6 +257,10 @@ object GameUIHelper {
 
         val btnCancel = Button(context)
         btnCancel.text = context.getString(R.string.cancel)
+        btnCancel.setTextColor(Color.WHITE)
+        btnCancel.typeface = ResourcesCompat.getFont(context, R.font.freckle_face)
+        btnCancel.isAllCaps = false
+        btnCancel.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(context, R.color.cluedo_pink))
         btnCancel.setOnClickListener { parent.removeView(overlay) }
         btnRow.addView(btnCancel)
 
@@ -311,26 +341,49 @@ object GameUIHelper {
         }, durationMs)
     }
 
-    fun showGameEndOverlay(context: Context, parent: ViewGroup, message: String) {
-        val overlay = ConstraintLayout(context)
-        overlay.setBackgroundColor(Color.argb(200, 0, 0, 0))
+    fun showGameEndOverlay(
+        context: Context,
+        parent: ViewGroup,
+        message: String,
+        isWin: Boolean = false
+    ) {
+        val overlay = android.widget.FrameLayout(context)
         overlay.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         )
-        val tv = TextView(context)
-        tv.text = message
-        tv.setTextColor(Color.WHITE)
-        tv.textSize = 24f
-        tv.gravity = Gravity.CENTER
-        val tlp = ConstraintLayout.LayoutParams(ConstraintLayout.LayoutParams.WRAP_CONTENT, ConstraintLayout.LayoutParams.WRAP_CONTENT).apply {
-            startToStart = ConstraintSet.PARENT_ID
-            endToEnd = ConstraintSet.PARENT_ID
-            topToTop = ConstraintSet.PARENT_ID
-            bottomToBottom = ConstraintSet.PARENT_ID
+
+        val bgImage = ImageView(context)
+        bgImage.layoutParams = android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        bgImage.scaleType = ImageView.ScaleType.FIT_XY
+        bgImage.setImageResource(if (isWin) R.drawable.winner else R.drawable.gameover)
+        overlay.addView(bgImage)
+
+        if (isWin) {
+            val content = LinearLayout(context)
+            content.orientation = LinearLayout.VERTICAL
+            content.gravity = Gravity.CENTER_HORIZONTAL
+            content.layoutParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            )
+
+            val tv = TextView(context)
+            tv.text = message
+            tv.setTextColor(ContextCompat.getColor(context, R.color.cluedo_pink))
+            tv.textSize = 18f
+            tv.gravity = Gravity.CENTER
+            tv.typeface = ResourcesCompat.getFont(context, R.font.freckle_face)
+            tv.setShadowLayer(4f, 2f, 2f, Color.BLACK)
+            tv.setPadding(0, 0, 0, dpToPx(context, 12))
+            content.addView(tv)
+
+            overlay.addView(content)
         }
-        tv.layoutParams = tlp
-        overlay.addView(tv)
         parent.addView(overlay)
     }
 }

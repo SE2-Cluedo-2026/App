@@ -7,11 +7,11 @@
     <string name="title_activity_main2">MainActivity2</string>
 
     <string name="checkmark">✓</string>
-    <string name="suspect">SUSPECT</string>
-    <string name="weapon">WEAPON</string>
-    <string name="room">ROOM</string>
-    <string name="confirm">Confirm</string>
-    <string name="cancel">Cancel</string>
+    <string name="suspect">WHO WAS IT?</string>
+    <string name="weapon">WITH WHAT?</string>
+    <string name="room">WHERE?</string>
+        <string name="confirm">CONFIRM</string>
+    <string name="cancel">CANCEL</string>
     <string name="checking_cards">Checking cards… %1$d</string>
 
     <string name="btn_roll_dice">Roll Dice</string>
@@ -30,8 +30,8 @@
     <string name="turn_other">Turn: %1$s</string>
     <string name="no_matching_cards">No matching cards found!</string>
     <string name="suggestion_made">%1$s made a suggestion</string>
-    <string name="you_won">YOU WON!</string>
-    <string name="player_won">Player %1$s won!</string>
+    <string name="you_won">YOU SOLVED THE CASE!</string>
+    <string name="player_won">%1$s SOLVED THE CASE!</string>
     <string name="wrong_accusation">Wrong accusation! You are eliminated.</string>
     <string name="player_eliminated">Player %1$s was eliminated.</string>
     <string name="game_over">Game Over: %1$s</string>

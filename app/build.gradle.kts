@@ -26,7 +26,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -45,6 +45,7 @@ android {
 
     testOptions {
         unitTests {
+            isReturnDefaultValues = true
             all {
                 it.useJUnitPlatform()
                 it.finalizedBy(tasks.named("jacocoTestReport"))
@@ -126,7 +127,8 @@ sonar {
             "**/LearnActivity.kt," +
             "**/GameUIHelper.kt," +
             "**/BoardColors.kt," +
-            "**/res/drawable/**,**/res/mipmap-*/**,**/res/font/**"
+            "**/res/drawable/**,**/res/mipmap-*/**,**/res/font/**" +
+            "**/Card.kt**"
 
         )
     }
@@ -161,4 +163,7 @@ dependencies {
     testImplementation("org.json:json:20231013")
     testImplementation("org.mockito:mockito-core:5.11.0")
     testImplementation("org.mockito:mockito-inline:5.2.0")
+    testImplementation("org.robolectric:robolectric:4.13")                        // NEU
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")              // NEU
+    testImplementation(libs.junit)
 }

@@ -14,7 +14,6 @@ object UserPreferences {
 
         if (existingId != null) return existingId
 
-        // Erste Mal → neue ID generieren und speichern
         val newId = UUID.randomUUID().toString()
         prefs.edit().putString(KEY_PLAYER_ID, newId).apply()
         return newId

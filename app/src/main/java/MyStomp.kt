@@ -18,7 +18,7 @@ import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
 import org.json.JSONObject
 
-private const val WEBSOCKET_URI = "ws://se2-demo.aau.at:53211/websocket-example-broker"
+private const val WEBSOCKET_URI = "ws://192.168.1.11:53211/CLUEDO"
 private const val LOBBY_DESTINATION = "/app/lobby"
 private const val GAME_DESTINATION = "/app/game"
 class MyStomp(val callbacks: Callbacks) {
@@ -34,6 +34,8 @@ class MyStomp(val callbacks: Callbacks) {
     private lateinit var activeSession: StompSession
 
     private var connected = false
+
+    private val connectErr= "Error: Not connected!"
     companion object {
         lateinit var instance: MyStomp
     }
@@ -44,7 +46,6 @@ class MyStomp(val callbacks: Callbacks) {
 
     fun connect() {
         Log.d("STOMP", "CONNECT called")
-        // Cancel any previous collectors before starting a fresh connection
         lobbyCollector?.cancel()
         lobbyCollector = null
         gameCollector?.cancel()
@@ -58,7 +59,6 @@ class MyStomp(val callbacks: Callbacks) {
                 activeSession = client.connect(WEBSOCKET_URI)
 
                 Log.d("STOMP", "CONNECTED -> session = $activeSession")
-                // connect to topic lobby-response
                 lobbyFlow = activeSession.subscribeText("/topic/lobby-response")
                 lobbyCollector = scope.launch {
                     try {
@@ -68,6 +68,9 @@ class MyStomp(val callbacks: Callbacks) {
                         }
                     } catch (e: Exception) {
                         Log.e("MyStomp", "Lobby connection lost", e)
+                        Handler(Looper.getMainLooper()).post {
+                            callbacks.onConnectionLost(e.message ?: "Connection lost")
+                        }
                     }
                 }
 
@@ -80,6 +83,9 @@ class MyStomp(val callbacks: Callbacks) {
                         }
                     } catch (e: Exception) {
                         Log.e("MyStomp", "Game connection lost", e)
+                        Handler(Looper.getMainLooper()).post {
+                            callbacks.onConnectionLost(e.message ?: "Game connection lost")
+                        }
                     }
                 }
                 callback("connected")
@@ -94,7 +100,9 @@ class MyStomp(val callbacks: Callbacks) {
 
             } catch (e: Exception) {
                 Log.e("MyStomp", "Connection failed", e)
-                callback("Connection error")
+                Handler(Looper.getMainLooper()).post {
+                    callbacks.onConnectionFailed(e.message ?: "Connection failed")
+                }
             }
         }
 
@@ -108,14 +116,12 @@ class MyStomp(val callbacks: Callbacks) {
     }
 
     fun disconnect() {
-        // Cancel collectors, but do NOT cancel the scope itself — we need it for reconnection.
         lobbyCollector?.cancel()
         lobbyCollector = null
         gameCollector?.cancel()
         gameCollector = null
         lobbyFlow = null
         gameFlow = null
-        // Close the STOMP session asynchronously
         scope.launch {
             try {
                 if (::activeSession.isInitialized) {
@@ -146,7 +152,7 @@ class MyStomp(val callbacks: Callbacks) {
                 if (::activeSession.isInitialized) {
                     activeSession.sendText(LOBBY_DESTINATION, json.toString())
                 } else {
-                    callback("Error: Not connected")
+                    callback(connectErr)
                 }
             } catch (e: Exception) {
                 Log.e("MyStomp", "Leaving lobby failed", e)
@@ -163,7 +169,6 @@ class MyStomp(val callbacks: Callbacks) {
         scope.launch {
             try {
                 activeSession.sendText(LOBBY_DESTINATION, json.toString())
-                    ?: callback("Error: Not connected")
             } catch (e: Exception) {
                 Log.e("MyStomp", "START_GAME failed", e)
             }
@@ -183,7 +188,7 @@ class MyStomp(val callbacks: Callbacks) {
                 if (::activeSession.isInitialized) {
                     activeSession.sendText("/app/game", json.toString())
                 } else {
-                    callback("Error: Not connected")
+                    callback(connectErr)
                 }
             } catch (e: Exception) {
                 Log.e("MyStomp", "END_TURN failed", e)
@@ -207,7 +212,7 @@ class MyStomp(val callbacks: Callbacks) {
                 if (::activeSession.isInitialized) {
                     activeSession.sendText(LOBBY_DESTINATION, json.toString())
                 } else {
-                    callback("Error: Not connected")
+                    callback(connectErr)
                 }
             } catch (e: Exception) {
                 Log.e("MyStomp", "SET_READY failed", e)
@@ -257,7 +262,7 @@ class MyStomp(val callbacks: Callbacks) {
                 if (::activeSession.isInitialized) {
                     activeSession.sendText(GAME_DESTINATION, json.toString())
                 } else {
-                    callback("Error: Not connected")
+                    callback(connectErr)
                 }
             } catch (e: Exception) {
                 Log.e("MyStomp", "$type failed", e)
@@ -282,5 +287,16 @@ class MyStomp(val callbacks: Callbacks) {
             payload.put("weapon", weapon)
         }
     }
+    fun sendCheatAttempt() {
+        sendGameMessage("CHEAT_ATTEMPT") { payload ->
+            payload.put("playerId", ClientState.playerId)
+        }
+    }
 
+    fun sendCheatButtonPressed(cheatPressed: Boolean) {
+        sendGameMessage("CHEAT_BUTTON_PRESSED") { payload ->
+            payload.put("suggesterID", ClientState.playerId)
+            payload.put("cheatPressed", cheatPressed)
+        }
+    }
 }

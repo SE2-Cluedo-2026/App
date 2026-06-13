@@ -8,17 +8,19 @@ import org.json.JSONObject
 
 class GameHandler {
     companion object {
-        var onRollDice: ((Int, String?) -> Unit)? = null
+        var onRollDice: ((String, Int, String?) -> Unit)? = null
         var onMove: ((String, String, Int) -> Unit)? = null
         var onEndTurn: ((Int) -> Unit)? = null
         var onEnterRoom: ((String, String) -> Unit)? = null
         var onHiddenWay: ((String,String) -> Unit)? = null
         var onAccusation: ((String, String, String, String, Boolean, Boolean) -> Unit)? = null
         var onSuggestionResult: ((String, String, String, String, List<String>) -> Unit)? = null
+        var onSuggestionRequest: ((String, String, String, String, Int, List<String>) -> Unit)? = null
+        var onCheatResult: ((Boolean, List<Pair<String, List<String>>>, String?, Boolean) -> Unit)? = null
         var onGameFinished: ((String) -> Unit)? = null
         var onGameAborted: ((String) -> Unit)? = null
         var onGamePaused: ((String, Int) -> Unit)? = null
-        var onContinueGame: ((String) -> Unit)? = null
+        var onContinueGame: ((String, Boolean) -> Unit)? = null
         var onGameError: ((String) -> Unit)? = null
         fun handle(msg: String) {
             try {
@@ -37,15 +39,15 @@ class GameHandler {
                         if (payload == null)
                             return
                         val value = payload.getInt("value")
+                        val playerId = payload.optString("playerId", ClientState.playerId)
                         ClientState.remainingMoves = value
-
                         var newPos: String? = null
                         if (payload.has("newPosition")) {
                             newPos = payload.getString("newPosition")
                             val playerId = payload.optString("playerId", ClientState.playerId)
                             ClientState.playerPositions[playerId] = newPos
                         }
-                        onRollDice?.invoke(value, newPos)
+                        onRollDice?.invoke(playerId, value, newPos)
                     }
 
                     GameMessageType.MOVE.name -> {
@@ -120,7 +122,6 @@ class GameHandler {
                                 val cardObj = cardsArray.getJSONObject(i)
                                 val cardName = cardObj.getString("name")
                                 matchingCards.add(cardName)
-                                // Auto-mark as seen
                                 if (suggesterID == ClientState.playerId) {
                                     ClientState.seenCards.add(cardName)
                                 }
@@ -141,12 +142,22 @@ class GameHandler {
 
                     GameMessageType.CONTINUE_GAME.name -> {
                         val rejoinedId = payload?.optString("rejoinedPlayerId") ?: ""
-                        onContinueGame?.invoke(rejoinedId)
+                        val waitingForPlayer = payload?.optBoolean("waitingForPlayer", false) ?: false
+                        onContinueGame?.invoke(rejoinedId, waitingForPlayer)
                     }
 
                     GameMessageType.GAME_ABORTED.name -> {
-                        val reason = payload?.optString("reason", "Game aborted") ?: "Game aborted"
-                        // Reset client state back to lobby
+                        var reason = payload?.optString("reason", "Game aborted") ?: "Game aborted"
+                        ClientState.playerCharacterMap.forEach { (playerId, characterName) ->
+                            reason = reason.replace(playerId, characterName)
+                        }
+
+                        ClientState.players.forEach { player ->
+                            player.character?.let { characterName ->
+                                reason = reason.replace(player.playerId, characterName)
+                            }
+                        }
+                        onGameAborted?.invoke(reason)
                         ClientState.gameStatus = "LOBBY"
                         ClientState.currentPhase = ""
                         ClientState.currentPlayerIndex = 0
@@ -159,7 +170,6 @@ class GameHandler {
                         ClientState.myCharacter = null
                         ClientState.seenCards.clear()
 
-                        // Restore available characters and players from payload if provided
                         if (payload != null) {
                             val availChars = payload.optJSONArray("availableCharacters")
                             if (availChars != null) {
@@ -174,17 +184,114 @@ class GameHandler {
                                 val playerList = mutableListOf<ExistingPlayerDTO>()
                                 for (i in 0 until existingPlayers.length()) {
                                     val p = existingPlayers.getJSONObject(i)
-                                    playerList.add(ExistingPlayerDTO(
-                                        playerId = p.getString("playerId"),
-                                        ready = p.optBoolean("ready", false),
-                                        character = null,
-                                        position = null
-                                    ))
+                                    playerList.add(
+                                        ExistingPlayerDTO(
+                                            playerId = p.getString("playerId"),
+                                            ready = p.optBoolean("ready", false),
+                                            character = null,
+                                            position = null
+                                        )
+                                    )
                                 }
                                 ClientState.players = playerList
                             }
                         }
-                        onGameAborted?.invoke(reason)
+                    }
+
+                    GameMessageType.SUGGESTION_REQUEST.name -> {
+                        if (payload == null) return
+                        val suggesterID = payload.getString("suggesterID")
+                        val suspect = payload.getString("suspect")
+                        val room = payload.getString("room")
+                        val weapon = payload.getString("weapon")
+                        val cheatWindowSeconds = payload.optInt("cheatWindowSeconds", 5)
+                        val matchingCards = mutableListOf<String>()
+                        val cardsArray = payload.optJSONArray("matchingCards")
+                        if (cardsArray != null) {
+                            for (i in 0 until cardsArray.length()) {
+                                matchingCards.add(cardsArray.getJSONObject(i).getString("name"))
+                            }
+                        }
+                        onSuggestionRequest?.invoke(
+                            suggesterID,
+                            suspect,
+                            room,
+                            weapon,
+                            cheatWindowSeconds,
+                            matchingCards
+                        )
+                    }
+
+                    GameMessageType.CHEAT_RESULT.name -> {
+                        if (payload == null) return
+
+                        if (payload.has("currentPhase")) {
+                            ClientState.currentPhase = payload.getString("currentPhase")
+                        }
+
+                        if (payload.has("currentPlayerIndex")) {
+                            val currentPlayerIndex = payload.getInt("currentPlayerIndex")
+                            ClientState.currentPlayerIndex = currentPlayerIndex
+                            ClientState.remainingMoves = 0
+                            onEndTurn?.invoke(currentPlayerIndex)
+                        }
+
+                        val cheatDetected = payload.optBoolean("cheatDetected", false)
+                        val cheatPressed = payload.optBoolean("cheatPressed", false)
+                        val suggesterID = payload.optString("suggesterID", "")
+                        val targetPlayerId = payload.optString("targetPlayerId", suggesterID)
+                        val cheatersArray = payload.optJSONArray("cheaters")
+
+                        if (cheatDetected) {
+                            if (cheatersArray != null) {
+                                for (i in 0 until cheatersArray.length()) {
+                                    if (cheatersArray.getJSONObject(i).getString("playerId") == ClientState.playerId) {
+                                        ClientState.cheatUsed = true
+                                    }
+                                }
+                            }
+
+                            if (ClientState.playerId == targetPlayerId) {
+                                val cheaters = mutableListOf<Pair<String, List<String>>>()
+
+                                if (cheatersArray != null) {
+                                    for (i in 0 until cheatersArray.length()) {
+                                        val cheaterObj = cheatersArray.getJSONObject(i)
+                                        val pid = cheaterObj.optString("playerId", "")
+                                        val cardsArr = cheaterObj.optJSONArray("cards")
+                                        val cards = mutableListOf<String>()
+
+                                        if (cardsArr != null) {
+                                            for (j in 0 until cardsArr.length()) {
+                                                val cardName = cardsArr.getJSONObject(j).optString("name", "")
+                                                cards.add(cardName)
+                                                if (cardName.isNotEmpty()) {
+                                                    ClientState.seenCards.add(cardName)
+                                                }
+                                            }
+                                        }
+
+                                        if (pid.isNotEmpty()) {
+                                            cheaters.add(Pair(pid, cards.filter { it.isNotEmpty() }))
+                                        }
+                                    }
+                                }
+
+                                onCheatResult?.invoke(true, cheaters, null, cheatPressed)
+                            }
+                        } else {
+                            val revealedCardName = payload.optJSONObject("revealedCard")?.optString("name")
+
+                            if (ClientState.playerId == suggesterID) {
+                                onCheatResult?.invoke(false, emptyList(), null, cheatPressed)
+                            } else {
+                                if (!revealedCardName.isNullOrEmpty()) {
+                                    ClientState.seenCards.add(revealedCardName)
+                                }
+
+                                onCheatResult?.invoke(false, emptyList(), revealedCardName, cheatPressed)
+                            }
+                        }
                     }
 
                     "ROLL_DICE_ERROR", "MOVE_ERROR", "ENTER_ROOM_ERROR",

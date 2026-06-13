@@ -19,37 +19,73 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
-        android:id="@+id/btnLearn"
-        android:layout_width="220dp"
-        android:layout_height="46dp"
-        android:alpha="0"
-        android:backgroundTint="#FFFFFF"
-        android:text="Learn"
-        android:textColor="#FF00FF"
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideBtnTop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.225" />
 
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.828"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.271" />
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideBtnBottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.363" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideBtn0Start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.124" />
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideBtn0End"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.3665" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideBtn1Start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.6225" />
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideBtn1End"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.8655" />
 
     <Button
         android:id="@+id/btnStart"
-        android:layout_width="224dp"
-        android:layout_height="44dp"
-        android:alpha="0"
-        android:backgroundTint="#FFFFFF"
-        android:text="Start"
-        android:textColor="#FF00FF"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="1"
+        android:background="@drawable/transparent_button_bg1"
+        android:textColor="#FFFFFF"
+        android:stateListAnimator="@null"
 
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.16"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.275" />
+        app:layout_constraintTop_toBottomOf="@id/guideBtnTop"
+        app:layout_constraintBottom_toTopOf="@id/guideBtnBottom"
+        app:layout_constraintStart_toEndOf="@id/guideBtn0Start"
+        app:layout_constraintEnd_toStartOf="@id/guideBtn0End" />
+
+    <Button
+        android:id="@+id/btnLearn"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="1"
+        android:background="@drawable/transparent_button_bg1"
+        android:textColor="#FFFFFF"
+        android:stateListAnimator="@null"
+
+        app:layout_constraintTop_toBottomOf="@id/guideBtnTop"
+        app:layout_constraintBottom_toTopOf="@id/guideBtnBottom"
+        app:layout_constraintStart_toEndOf="@id/guideBtn1Start"
+        app:layout_constraintEnd_toStartOf="@id/guideBtn1End" />
 
     <FrameLayout
         android:id="@+id/loadingOverlay"
@@ -72,13 +108,13 @@
             <ProgressBar
                 android:layout_width="64dp"
                 android:layout_height="64dp"
-                android:indeterminateTint="#D12E7D" />
+                android:indeterminateTint="#F50057" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="CONNECTING TO SERVER..."
-                android:textColor="#D12E7D"
+                android:textColor="#F50057"
                 android:textSize="18sp"
                 android:fontFamily="@font/freckle_face"
                 android:layout_marginTop="12dp" />

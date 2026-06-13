@@ -18,10 +18,6 @@ class MainActivity : ComponentActivity(), Callbacks {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Always create a fresh MyStomp — it resets internal state cleanly
-        // and keeps the CoroutineScope alive for reconnection.
-        myStomp = MyStomp(this)
-
         val playerId = UserPreferences.getOrCreatePlayerId(this)
         ClientState.playerId = playerId
 
@@ -29,7 +25,26 @@ class MainActivity : ComponentActivity(), Callbacks {
 
         setContentView(R.layout.cluedo_fragment_fullscreen)
 
+        val btnLearn = findViewById<Button>(R.id.btnLearn)
+        btnLearn.setOnClickListener {
+            val intent = Intent(this, LearnActivity::class.java)
+            startActivity(intent)
+        }
+
+        val btnStart = findViewById<Button>(R.id.btnStart)
+        btnStart.setOnClickListener {
+            findViewById<android.widget.FrameLayout>(R.id.loadingOverlay).visibility = android.view.View.VISIBLE
+            myStomp.connect()
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        myStomp = MyStomp(this)
+
         val loadingOverlay = findViewById<android.widget.FrameLayout>(R.id.loadingOverlay)
+        loadingOverlay.visibility = android.view.View.GONE
 
         LobbyHandler.onLobbyJoined = {
             runOnUiThread {
@@ -47,33 +62,39 @@ class MainActivity : ComponentActivity(), Callbacks {
                 }
             }
         }
-        LobbyHandler.onPlayerRejoinedRunning = {
+        LobbyHandler.onPlayerRejoinedRunning = { waitingForPlayer ->
             runOnUiThread {
                 loadingOverlay.visibility = android.view.View.GONE
-                startActivity(Intent(this, GameActivity::class.java))
+                val intent = Intent(this, GameActivity::class.java)
+                intent.putExtra("waitingForPlayer", waitingForPlayer)
+                startActivity(intent)
             }
         }
 
-        val btnLearn = findViewById<Button>(R.id.btnLearn)
+        LobbyHandler.onGameFull = { dto ->
+            runOnUiThread {
+                findViewById<android.widget.FrameLayout>(R.id.loadingOverlay).visibility =
+                    android.view.View.GONE
 
-        btnLearn.setOnClickListener {
-            val intent = Intent(this, LearnActivity::class.java)
-            startActivity(intent)
+                android.widget.Toast.makeText(
+                    this,
+                    dto.message,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+
+
+                android.os.Handler(mainLooper).postDelayed({
+                    MyStomp.instance.disconnect()
+                }, 500)
+            }
         }
-
-
-        val btnStart = findViewById<Button>(R.id.btnStart)
-        btnStart.setOnClickListener {
-            loadingOverlay.visibility = android.view.View.VISIBLE
-            myStomp.connect()
-        }
-
     }
 
     override fun onDestroy() {
         LobbyHandler.onLobbyJoined = null
         LobbyHandler.onPlayerRejoined = null
         LobbyHandler.onPlayerRejoinedRunning = null
+        LobbyHandler.onGameFull = null
         if (::myStomp.isInitialized) {
             myStomp.disconnect()
         }
@@ -82,9 +103,37 @@ class MainActivity : ComponentActivity(), Callbacks {
 
     override fun onResponse(res: String) {
         Log.d("MainActivity", "Response: $res")
+        if (res.startsWith("Error:")) {
+            runOnUiThread {
+                findViewById<android.widget.FrameLayout>(R.id.loadingOverlay).visibility =
+                    android.view.View.GONE
+                android.widget.Toast.makeText(this, res, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     override fun onConnected() {
-        // Handled via LobbyHandler.onLobbyJoined callback
+    }
+
+    override fun onConnectionFailed(reason: String) {
+        runOnUiThread {
+            findViewById<android.widget.FrameLayout>(R.id.loadingOverlay).visibility =
+                android.view.View.GONE
+            android.widget.Toast.makeText(
+                this,
+                "Could not connect to server: $reason",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    override fun onConnectionLost(reason: String) {
+        runOnUiThread {
+            android.widget.Toast.makeText(
+                this,
+                "Disconnected from server!",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
     }
 }
