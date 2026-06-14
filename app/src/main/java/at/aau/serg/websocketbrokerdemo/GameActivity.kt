@@ -298,21 +298,33 @@ class GameActivity : ComponentActivity() {
     private fun onCellTapped(col: Int, row: Int) {
         if (!isMyTurn() || ClientState.isEliminated) return
 
-        val currentPosStr = ClientState.playerPositions[ClientState.playerId]
-        if (currentPosStr != null && currentPosStr.contains(",")) {
-            val parts = currentPosStr.split(",")
-            val c = parts[0].trim().toIntOrNull() ?: 0
-            val r = parts[1].trim().toIntOrNull() ?: 0
-            if (!BoardConfig.isAdjacent(c, r, col, row)) {
-                Toast.makeText(this, getString(R.string.move_not_adjacent), Toast.LENGTH_SHORT)
-                    .show()
-                return
-            }
-        }
-
         if (!BoardConfig.isWalkable(col, row)) {
             Toast.makeText(this, getString(R.string.move_not_walkable), Toast.LENGTH_SHORT).show()
             return
+        }
+
+        val currentPosStr = ClientState.playerPositions[ClientState.playerId]
+
+        if (currentPosStr != null && currentPosStr.contains(",")) {
+            val parts = currentPosStr.split(",")
+            val currentCol = parts[0].trim().toIntOrNull() ?: 0
+            val currentRow = parts[1].trim().toIntOrNull() ?: 0
+
+            if (!BoardConfig.isWithinMoveRange(
+                    currentCol,
+                    currentRow,
+                    col,
+                    row,
+                    ClientState.remainingMoves
+                )
+            ) {
+                Toast.makeText(
+                    this,
+                    "You can only move within ${ClientState.remainingMoves} steps.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return
+            }
         }
 
         val phase = ClientState.currentPhase
@@ -321,7 +333,6 @@ class GameActivity : ComponentActivity() {
             MyStomp.instance.move("$col,$row")
         }
     }
-
     private fun onRollDice() {
         if (!isMyTurn() || ClientState.isEliminated) return
         if (ClientState.currentPhase != "WAITING_FOR_ROLL") return
