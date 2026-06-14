@@ -362,27 +362,30 @@ class GameHandlerTest {
 
     @Test
     fun `CHEAT_RESULT with cheatDetected true calls callback`() = handle {
+        at.aau.serg.websocketbrokerdemo.model.ClientState.playerId = "p1"
         var detected = false
         GameHandler.onCheatResult = { cheatDetected, _, _, _ -> detected = cheatDetected }
-        GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": true, "cheatPressed": true, "cheaters": [] } }""")
+        GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": true, "cheatPressed": true, "targetPlayerId": "p1", "cheaters": [] } }""")
         Assertions.assertTrue(detected)
     }
 
     @Test
     fun `CHEAT_RESULT with cheaters and cards calls callback`() = handle {
+        at.aau.serg.websocketbrokerdemo.model.ClientState.playerId = "p1"
         var cheaters = listOf<Pair<String, List<String>>>()
         GameHandler.onCheatResult = { _, c, _, _ -> cheaters = c }
-        GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": true, "cheatPressed": true, "cheaters": [{"playerId": "p2", "cards": [{"name": "knife"}]}] } }""")
+        GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": true, "cheatPressed": true, "targetPlayerId": "p1", "cheaters": [{"playerId": "p2", "cards": [{"name": "knife"}]}] } }""")
         Assertions.assertEquals("p2", cheaters[0].first)
         Assertions.assertEquals(listOf("knife"), cheaters[0].second)
     }
 
     @Test
     fun `CHEAT_RESULT with cheater without cards does not crash`() = handle {
+        at.aau.serg.websocketbrokerdemo.model.ClientState.playerId = "p1"
         var called = false
         GameHandler.onCheatResult = {
                 _, _, _, _ -> called = true }
-        GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": true, "cheatPressed": true, "cheaters": [{"playerId": "p2"}] } }""")
+        GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": true, "cheatPressed": true, "targetPlayerId": "p1", "cheaters": [{"playerId": "p2"}] } }""")
         Assertions.assertTrue(called)
     }
 
