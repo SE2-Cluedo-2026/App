@@ -142,8 +142,6 @@
             android:background="@android:color/transparent"
             app:layout_constraintStart_toStartOf="@id/logsTop"
             app:layout_constraintBottom_toBottomOf="@id/logsBottom"
-            app:layout_constraintStart_toEndOf="@id/logsLeft"
-            app:layout_constraintEnd_toStartOf="@id/logsRight"
             />
 
         <androidx.constraintlayout.widget.Guideline
