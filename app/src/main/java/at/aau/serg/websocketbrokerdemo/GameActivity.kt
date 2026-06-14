@@ -326,6 +326,16 @@ class GameActivity : ComponentActivity() {
                 return
             }
         }
+        val targetPosition = "$col,$row"
+
+        val occupied = ClientState.playerPositions.any { (otherPlayerId, otherPosition) ->
+            otherPlayerId != ClientState.playerId && otherPosition == targetPosition
+        }
+
+        if (occupied) {
+            Toast.makeText(this, "This field is already occupied.", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         val phase = ClientState.currentPhase
 
