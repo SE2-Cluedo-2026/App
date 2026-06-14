@@ -64,4 +64,11 @@ object BoardConfig {
     fun getRoomAtDoor(col: Int, row: Int): String? {
         return DOOR_CELLS[Pair(col, row)]
     }
+    fun manhattanDistance(col1: Int, row1: Int, col2: Int, row2: Int): Int {
+        return abs(col1 - col2) + abs(row1 - row2)
+    }
+
+    fun isWithinMoveRange(col1: Int, row1: Int, col2: Int, row2: Int, moves: Int): Boolean {
+        return manhattanDistance(col1, row1, col2, row2) in 1..moves
+    }
 }

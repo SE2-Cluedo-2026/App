@@ -84,27 +84,65 @@
             app:layout_constraintStart_toEndOf="@id/gridOverlayLeft"
             app:layout_constraintEnd_toStartOf="@id/gridOverlayRight"/>
 
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/logsTop"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.925" />
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/logsBottom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.975" />
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/logsLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.025" />
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/logsRight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.32" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/characterPanelBottom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.8" />
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/characterPanelRight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.16" />
+
         <LinearLayout
             android:id="@+id/characterPanel"
-            android:layout_width="80dp"
+            android:layout_width="0dp"
             android:layout_height="0dp"
             android:orientation="vertical"
             android:gravity="center_vertical"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/characterPanelBottom"
+            app:layout_constraintEnd_toStartOf="@id/characterPanelRight"
             android:padding="4dp" />
         <LinearLayout
             android:id="@+id/actionLogContainer"
             android:layout_width="230dp"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:orientation="vertical"
-            android:padding="8dp"
+            android:padding="7dp"
             android:background="@android:color/transparent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintBottom_toBottomOf="@id/characterPanel"
-            android:layout_marginStart="5dp"
-            android:layout_marginBottom="10dp"/>
+            app:layout_constraintStart_toStartOf="@id/logsTop"
+            app:layout_constraintBottom_toBottomOf="@id/logsBottom"
+            />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/suspectChecklistOverlayTop"
@@ -201,7 +239,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            app:layout_constraintGuide_percent="0.93" />
+            app:layout_constraintGuide_begin="382dp" />
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideGridStart"
