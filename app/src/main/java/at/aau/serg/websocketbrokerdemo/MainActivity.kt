@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity(), Callbacks {
             }
         }
 
-        LobbyHandler.onPlayerRejoined = { dto ->
+        LobbyHandler.onPlayerRejoined = { _ ->
             runOnUiThread {
                 if (ClientState.gameStatus == "RUNNING") {
                     startActivity(Intent(this, GameActivity::class.java))

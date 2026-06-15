@@ -1,6 +1,7 @@
 package at.aau.serg.websocketbrokerdemo
 
 import android.content.Context
+import androidx.core.content.edit
 import java.util.UUID
 
 object UserPreferences {
@@ -15,7 +16,7 @@ object UserPreferences {
         if (existingId != null) return existingId
 
         val newId = UUID.randomUUID().toString()
-        prefs.edit().putString(KEY_PLAYER_ID, newId).apply()
+        prefs.edit { putString(KEY_PLAYER_ID, newId) }
         return newId
     }
 }
