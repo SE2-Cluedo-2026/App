@@ -14,6 +14,13 @@ activityCompose = "1.13.0"
 composeBom = "2026.03.00"
 constraintlayout = "2.2.1"
 junitKtx = "1.3.0"
+coreSplashscreen = "1.0.1"
+material = "1.12.0"
+orgJson = "20231013"
+mockitoCore = "5.11.0"
+mockitoInline = "5.2.0"
+robolectric = "4.13"
+junitVintageEngine = "5.10.2"
 
 [libraries]
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junitJupiterApi" }
@@ -38,6 +45,13 @@ krossbow-websocket-builtin = { module = "org.hildan.krossbow:krossbow-websocket-
 krossbow-websocket-okhttp = { module = "org.hildan.krossbow:krossbow-websocket-okhttp", version.ref = "krossbowWebsocketOkhttp" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitJupiterApi" }
 androidx-junit-ktx = { group = "androidx.test.ext", name = "junit-ktx", version.ref = "junitKtx" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockitoCore" }
+mockito-inline = { group = "org.mockito", name = "mockito-inline", version.ref = "mockitoInline" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+junit-vintage-engine = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junitVintageEngine" }
 
 [plugins]
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

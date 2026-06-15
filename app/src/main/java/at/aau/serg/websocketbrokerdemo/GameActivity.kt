@@ -18,6 +18,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.graphics.toColorInt
 import at.aau.serg.websocketbrokerdemo.model.BoardColors
 import com.example.myapplication.R
 import at.aau.serg.websocketbrokerdemo.model.BoardConfig
@@ -131,7 +133,7 @@ class GameActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        window.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
 
         startDisconnectService()
 
@@ -203,7 +205,6 @@ class GameActivity : ComponentActivity() {
     private fun setupBoard() {
         val container = findViewById<View>(R.id.boardContainer)
         val imgH = container.height
-        val imgY = container.top
 
         if (imgH == 0) return
 
@@ -239,14 +240,14 @@ class GameActivity : ComponentActivity() {
         val roomOverlay = findViewById<ViewGroup>(R.id.roomOverlay)
         roomOverlay?.removeAllViews()
 
-        setupCharacterPanel(imgY, imgH)
+        setupCharacterPanel()
         updateChecklist()
         updateCurrentPlayerHighlight()
         updateButtonStates()
         placeAllPlayerDots()
     }
 
-    private fun setupCharacterPanel(imgY: Int, imgH: Int) {
+    private fun setupCharacterPanel() {
         characterPanel.removeAllViews()
         characterHighlights.clear()
         playerStatusViews.clear()
@@ -270,7 +271,7 @@ class GameActivity : ComponentActivity() {
 
             val highlightView = itemView.findViewById<View>(R.id.viewActiveHighlight)
             val border = GradientDrawable()
-            border.setStroke(GameUIHelper.dpToPx(this, 3), Color.parseColor("#F50057"))
+            border.setStroke(GameUIHelper.dpToPx(this, 3), "#F50057".toColorInt())
             border.cornerRadius = GameUIHelper.dpToPx(this, 4).toFloat()
             border.setColor(Color.TRANSPARENT)
             highlightView.background = border
@@ -626,7 +627,7 @@ class GameActivity : ComponentActivity() {
         }
 
         GameHandler.onSuggestionRequest =
-            { suggesterID, suspect, room, weapon, cheatWindowSeconds, matchingCards ->
+            { suggesterID, suspect, room, weapon, cheatWindowSeconds, _ ->
                 runOnUiThread {
                     addActionMessage(
                         "💡 ${playerDisplayName(suggesterID)} made a suggestion")
@@ -763,7 +764,7 @@ class GameActivity : ComponentActivity() {
                 }
             }
 
-            GameHandler.onContinueGame = { rejoinedId, waitingForPlayer ->
+            GameHandler.onContinueGame = { _, waitingForPlayer ->
                 runOnUiThread {
                     if (!waitingForPlayer) {
                         dismissPauseOverlay()

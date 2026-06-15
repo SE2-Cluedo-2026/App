@@ -127,7 +127,9 @@ class MyStomp(val callbacks: Callbacks) {
                 if (::activeSession.isInitialized) {
                     try {
                         activeSession.disconnect()
-                    } catch (_: Exception) { }
+                    } catch (e: Exception) {
+                        Log.w("MyStomp", "Error while disconnecting session", e)
+                    }
                 }
                 connected = false
                 Log.d("MyStomp", "Disconnected successfully")
