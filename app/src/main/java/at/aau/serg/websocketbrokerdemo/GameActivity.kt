@@ -637,7 +637,7 @@ class GameActivity : ComponentActivity() {
                 }
             }
 
-            GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard, cheatPressed ->
+            GameHandler.onCheatResult = { cheatDetected, cheaters, matchingCards, revealedCard, cheatPressed ->
                 runOnUiThread {
                     dismissCheatOverlays()
 
@@ -645,15 +645,8 @@ class GameActivity : ComponentActivity() {
                         if (cheaters.any { it.first == ClientState.playerId }) {
                             ClientState.cheatUsed = true
                         }
-                        val allCards = cheaters.flatMap { it.second }
-
-                        val suggestionCards = listOf(lastSuggestion.first, lastSuggestion.second, lastSuggestion.third)
-                            .filter { it.isNotEmpty() }
-
-                        val penaltyCard = allCards.firstOrNull { it !in ClientState.seenCards }
-                            ?: allCards.firstOrNull()
-
-                        val cardsToShow = (suggestionCards + listOfNotNull(penaltyCard)).distinct()
+                        val penaltyCards = cheaters.flatMap { it.second }
+                        val cardsToShow = (matchingCards + penaltyCards).distinct()
                         ClientState.seenCards.addAll(cardsToShow)
 
                         val msg = "Cheat detected! Cards: ${cardsToShow.joinToString(", ")}"
@@ -976,6 +969,32 @@ class GameActivity : ComponentActivity() {
             myTurn && inRoom && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL")
         )
         setButtonActive(btnLeave, true)
+        updateBoardBackground(myTurn, phase, inRoom, hasHiddenPassage)
+    }
+
+    private fun updateBoardBackground(
+        myTurn: Boolean,
+        phase: String,
+        inRoom: Boolean,
+        hasHiddenPassage: Boolean
+    ) {
+        val drawable = when {
+            // Nicht mein Zug → nur Leave-Button aktiv
+            !myTurn -> R.drawable.cboard_leave_only
+            // Eckraum, Zug beginnt → noch nicht bewegt (WAITING_FOR_ROLL)
+            inRoom && hasHiddenPassage && phase == "WAITING_FOR_ROLL" -> R.drawable.cboard
+            // Eckraum, bereits bewegt (Hidden Way oder in den Raum gezogen)
+            inRoom && hasHiddenPassage -> R.drawable.cboard_in_corner_room
+            // Normaler Raum, Zug beginnt (WAITING_FOR_ROLL)
+            inRoom && phase == "WAITING_FOR_ROLL" -> R.drawable.cboard_in_room_waiting
+            // Normaler Raum, bereits bewegt
+            inRoom -> R.drawable.cboard_in_room
+            // Auf dem Board, bereit zum Würfeln
+            phase == "WAITING_FOR_ROLL" -> R.drawable.cboard_roll_dice
+            // Auf dem Board, bewegt sich noch (nach Würfeln, vor Raum)
+            else -> R.drawable.cboard_leave_only
+        }
+        boardImage.setImageResource(drawable)
     }
 
     private fun setButtonActive(btn: Button, active: Boolean) {
