@@ -884,28 +884,61 @@ class GameActivity : ComponentActivity() {
             dot.layoutParams = dlp
             gridOverlay.addView(dot)
         } else {
-            val roomOverlay = findViewById<ViewGroup>(R.id.roomOverlay) ?: return
+            val roomOverlayView = findViewById<ViewGroup>(R.id.roomOverlay) ?: return
 
             val playersInRoom = ClientState.playerPositions.filter { it.value == position }
-            val slotIndex = playersInRoom.keys.toList().indexOf(playerId).coerceIn(0, 3)
+            val sortedIds = playersInRoom.keys.sorted()
+            val count = sortedIds.size.coerceAtLeast(1)
+            val gap = dotSize / 4
+
+            val cols = if (count <= 2) count else 2
+            val rows = (count + 1) / 2
+            val groupW = cols * dotSize + (cols - 1) * gap
+            val groupH = rows * dotSize + (rows - 1) * gap
 
             val percent = BoardConfig.ROOM_CENTERS_PERCENT[position] ?: Pair(0.5f, 0.5f)
-            val centerX = (roomOverlay.width * percent.first).toInt()
-            val centerY = (roomOverlay.height * percent.second).toInt()
+            val centerX = (roomOverlayView.width * percent.first).toInt()
+            val centerY = (roomOverlayView.height * percent.second).toInt()
+            val startY = centerY - groupH / 2
 
-            val offsetX = (slotIndex % 2) * dotSize
-            val offsetY = (slotIndex / 2) * dotSize
+            // Rechte Räume expandieren nach rechts, linke Räume nach links
+            val rightRooms = setOf("BALLROOM", "LIBRARY", "BILLIARDROOM")
+            val leftRooms = setOf("KITCHEN", "LOUNGE", "STUDY")
+            fun slotX(index: Int): Int {
+                val col = index % cols
+                return when (position) {
+                    in rightRooms -> centerX + col * (dotSize + gap)
+                    in leftRooms  -> centerX - col * (dotSize + gap)
+                    else          -> centerX - groupW / 2 + col * (dotSize + gap)
+                }
+            }
+            fun slotY(index: Int): Int = startY + (index / cols) * (dotSize + gap)
 
+            // Neuen Dot platzieren
+            val mySlot = sortedIds.indexOf(playerId).coerceIn(0, 3)
             val dlp =
                 androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(dotSize, dotSize)
                     .apply {
                         startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
                         topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                        leftMargin = centerX + offsetX - dotSize / 2
-                        topMargin = centerY + offsetY - dotSize / 2
+                        leftMargin = slotX(mySlot)
+                        topMargin = slotY(mySlot)
                     }
             dot.layoutParams = dlp
-            roomOverlay.addView(dot)
+            roomOverlayView.addView(dot)
+
+            // Alle anderen Spieler im gleichen Raum neu ausrichten
+            sortedIds.forEachIndexed { index, pid ->
+                if (pid != playerId) {
+                    val existingDot = playerDots[pid] ?: return@forEachIndexed
+                    val lp = existingDot.layoutParams
+                        as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                        ?: return@forEachIndexed
+                    lp.leftMargin = slotX(index)
+                    lp.topMargin = slotY(index)
+                    existingDot.layoutParams = lp
+                }
+            }
         }
 
         playerDots[playerId] = dot
