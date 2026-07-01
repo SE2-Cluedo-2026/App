@@ -65,7 +65,6 @@ class GameActivity : ComponentActivity() {
     private var lastSuggestion = Triple("", "", "")
     private var storedWinnerMsg = ""
 
-    private var bgMusic: MediaPlayer? = null
     private var waitingMusic: MediaPlayer? = null
 
     private var isLeaving = false
@@ -137,11 +136,6 @@ class GameActivity : ComponentActivity() {
 
         startDisconnectService()
 
-        bgMusic = MediaPlayer.create(this, R.raw.game_music)
-        bgMusic?.isLooping = true
-        bgMusic?.setVolume(0.1f, 0.1f)
-        bgMusic?.start()
-
         rootLayout = findViewById(R.id.rootGameLayout)
         boardImage = findViewById(R.id.imgBoard)
         gridOverlay = findViewById(R.id.gridOverlay)
@@ -193,7 +187,6 @@ class GameActivity : ComponentActivity() {
         if (intent.getBooleanExtra("waitingForPlayer", false)) {
             rootLayout.post {
                 showPauseOverlay("", 30)
-                bgMusic?.pause()
                 stopWaitingMusic()
                 waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
                 waitingMusic?.isLooping = true
@@ -403,7 +396,6 @@ class GameActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        bgMusic?.pause()
         if (!isLeaving) {
             bgDisconnectHandler.postDelayed(bgDisconnectRunnable, 5000)
         }
@@ -412,9 +404,6 @@ class GameActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
-        if (waitingMusic == null) {
-            bgMusic?.start()
-        }
     }
 
     private fun onLeaveGame() {
@@ -422,9 +411,6 @@ class GameActivity : ComponentActivity() {
         isLeaving = true
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
         stopDisconnectService()
-        bgMusic?.stop()
-        bgMusic?.release()
-        bgMusic = null
         stopWaitingMusic()
         if (pauseOverlay != null) {
             MyStomp.instance.leaveLobby()
@@ -683,9 +669,6 @@ class GameActivity : ComponentActivity() {
                         if (correct) {
                             storedWinnerMsg = if (accuserID == ClientState.playerId) getString(R.string.you_won)
                                               else getString(R.string.player_won, playerDisplayName(accuserID))
-                            bgMusic?.stop()
-                            bgMusic?.release()
-                            bgMusic = null
                             playSound(R.raw.win_sound)
                             android.os.Handler(mainLooper).postDelayed({
                                 GameUIHelper.showGameEndOverlay(this, rootLayout, storedWinnerMsg, isWin = true)
@@ -724,9 +707,6 @@ class GameActivity : ComponentActivity() {
             GameHandler.onGameFinished = { winner ->
                 runOnUiThread {
                     if (storedWinnerMsg.isEmpty()) {
-                        bgMusic?.stop()
-                        bgMusic?.release()
-                        bgMusic = null
                         playSound(R.raw.win_sound)
                         val msg = if (winner == ClientState.playerId) getString(R.string.you_won)
                                   else getString(R.string.player_won, playerDisplayName(winner))
@@ -744,7 +724,6 @@ class GameActivity : ComponentActivity() {
             GameHandler.onGamePaused = { disconnectedId, countdown ->
                 runOnUiThread {
                     showPauseOverlay(disconnectedId, countdown)
-                    bgMusic?.pause()
                     val leavePlayer = MediaPlayer.create(this, R.raw.ingame_leave_sound)
                     leavePlayer?.setOnCompletionListener {
                         it.release()
@@ -762,7 +741,6 @@ class GameActivity : ComponentActivity() {
                     if (!waitingForPlayer) {
                         dismissPauseOverlay()
                         stopWaitingMusic()
-                        bgMusic?.start()
                         Toast.makeText(
                             this,
                             "All Players rejoined!",
@@ -786,9 +764,6 @@ class GameActivity : ComponentActivity() {
                     if (reason == "Game finished — returning to lobby") return@runOnUiThread
                     if (storedWinnerMsg.isNotEmpty()) return@runOnUiThread
                     stopWaitingMusic()
-                    bgMusic?.stop()
-                    bgMusic?.release()
-                    bgMusic = null
                     playSound(R.raw.game_over_sound)
                     val displayReason = replacePlayerIdsWithNames(reason)
                     GameUIHelper.showGameEndOverlay(
@@ -824,9 +799,6 @@ class GameActivity : ComponentActivity() {
     override fun onDestroy() {
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
         stopDisconnectService()
-        bgMusic?.stop()
-        bgMusic?.release()
-        bgMusic = null
         stopWaitingMusic()
         dismissPauseOverlay()
         dismissCheatOverlays()
