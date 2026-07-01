@@ -364,7 +364,7 @@ class GameHandlerTest {
     fun `CHEAT_RESULT with cheatDetected true calls callback`() = handle {
         at.aau.serg.websocketbrokerdemo.model.ClientState.playerId = "p1"
         var detected = false
-        GameHandler.onCheatResult = { cheatDetected, _, _, _ -> detected = cheatDetected }
+        GameHandler.onCheatResult = { cheatDetected, _, _, _, _ -> detected = cheatDetected }
         GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": true, "cheatPressed": true, "targetPlayerId": "p1", "cheaters": [] } }""")
         Assertions.assertTrue(detected)
     }
@@ -373,7 +373,7 @@ class GameHandlerTest {
     fun `CHEAT_RESULT with cheaters and cards calls callback`() = handle {
         at.aau.serg.websocketbrokerdemo.model.ClientState.playerId = "p1"
         var cheaters = listOf<Pair<String, List<String>>>()
-        GameHandler.onCheatResult = { _, c, _, _ -> cheaters = c }
+        GameHandler.onCheatResult = { _, c, _, _, _ -> cheaters = c }
         GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": true, "cheatPressed": true, "targetPlayerId": "p1", "cheaters": [{"playerId": "p2", "cards": [{"name": "knife"}]}] } }""")
         Assertions.assertEquals("p2", cheaters[0].first)
         Assertions.assertEquals(listOf("knife"), cheaters[0].second)
@@ -384,7 +384,7 @@ class GameHandlerTest {
         at.aau.serg.websocketbrokerdemo.model.ClientState.playerId = "p1"
         var called = false
         GameHandler.onCheatResult = {
-                _, _, _, _ -> called = true }
+                _, _, _, _, _ -> called = true }
         GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": true, "cheatPressed": true, "targetPlayerId": "p1", "cheaters": [{"playerId": "p2"}] } }""")
         Assertions.assertTrue(called)
     }
@@ -392,7 +392,7 @@ class GameHandlerTest {
     @Test
     fun `CHEAT_RESULT with cheatDetected false calls callback`() = handle {
         var detected = true
-        GameHandler.onCheatResult = { cheatDetected, _, _, _ -> detected = cheatDetected }
+        GameHandler.onCheatResult = { cheatDetected, _, _, _, _ -> detected = cheatDetected }
         GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": false, "cheatPressed": true, "revealedCard": "knife" } }""")
         Assertions.assertFalse(detected)
     }
@@ -400,7 +400,7 @@ class GameHandlerTest {
     @Test
     fun `CHEAT_RESULT with cheatPressed true and nobody cheated reports cheatPressed`() = handle {
         var pressed = false
-        GameHandler.onCheatResult = { _, _, _, cheatPressed -> pressed = cheatPressed }
+        GameHandler.onCheatResult = { _, _, _, _, cheatPressed -> pressed = cheatPressed }
         GameHandler.handle("""{ "type": "CHEAT_RESULT", "payload": { "cheatDetected": false, "cheatPressed": true, "suggesterID": "p1", "revealedCard": {"name": "knife"} } }""")
         Assertions.assertTrue(pressed)
     }
@@ -409,7 +409,7 @@ class GameHandlerTest {
     fun `CHEAT_RESULT with cheatPressed false reports cheatPressed false so client shows no message`() = handle {
         var pressed = true
         var detected = true
-        GameHandler.onCheatResult = { cheatDetected, _, _, cheatPressed ->
+        GameHandler.onCheatResult = { cheatDetected, _, _, _, cheatPressed ->
             detected = cheatDetected
             pressed = cheatPressed
         }
@@ -421,7 +421,7 @@ class GameHandlerTest {
     @Test
     fun `CHEAT_RESULT with null payload does not crash`() = handle {
         var called = false
-        GameHandler.onCheatResult = { _, _, _, _ -> called = true }
+        GameHandler.onCheatResult = { _, _, _, _, _ -> called = true }
         GameHandler.handle("""{ "type": "CHEAT_RESULT" }""")
         Assertions.assertFalse(called)
     }
