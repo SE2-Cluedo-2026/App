@@ -16,7 +16,7 @@ class GameHandler {
         var onAccusation: ((String, String, String, String, Boolean, Boolean) -> Unit)? = null
         var onSuggestionResult: ((String, String, String, String, List<String>) -> Unit)? = null
         var onSuggestionRequest: ((String, String, String, String, Int, List<String>) -> Unit)? = null
-        var onCheatResult: ((Boolean, List<Pair<String, List<String>>>, String?, Boolean) -> Unit)? = null
+        var onCheatResult: ((Boolean, List<Pair<String, List<String>>>, List<String>, String?, Boolean) -> Unit)? = null
         var onGameFinished: ((String) -> Unit)? = null
         var onGameAborted: ((String) -> Unit)? = null
         var onGamePaused: ((String, Int) -> Unit)? = null
@@ -252,8 +252,21 @@ class GameHandler {
                             }
 
                             if (ClientState.playerId == targetPlayerId) {
-                                val cheaters = mutableListOf<Pair<String, List<String>>>()
+                                // Normale Matching Cards (vom Server aus der regulären Auflösung)
+                                val normalMatchingCards = mutableListOf<String>()
+                                val matchingCardsArr = payload.optJSONArray("matchingCards")
+                                if (matchingCardsArr != null) {
+                                    for (i in 0 until matchingCardsArr.length()) {
+                                        val cardName = matchingCardsArr.getJSONObject(i).optString("name", "")
+                                        if (cardName.isNotEmpty()) {
+                                            normalMatchingCards.add(cardName)
+                                            ClientState.seenCards.add(cardName)
+                                        }
+                                    }
+                                }
 
+                                // Strafkarten der Cheater
+                                val cheaters = mutableListOf<Pair<String, List<String>>>()
                                 if (cheatersArray != null) {
                                     for (i in 0 until cheatersArray.length()) {
                                         val cheaterObj = cheatersArray.getJSONObject(i)
@@ -277,19 +290,19 @@ class GameHandler {
                                     }
                                 }
 
-                                onCheatResult?.invoke(true, cheaters, null, cheatPressed)
+                                onCheatResult?.invoke(true, cheaters, normalMatchingCards, null, cheatPressed)
                             }
                         } else {
                             val revealedCardName = payload.optJSONObject("revealedCard")?.optString("name")
 
                             if (ClientState.playerId == suggesterID) {
-                                onCheatResult?.invoke(false, emptyList(), null, cheatPressed)
+                                onCheatResult?.invoke(false, emptyList(), emptyList(), null, cheatPressed)
                             } else {
                                 if (!revealedCardName.isNullOrEmpty()) {
                                     ClientState.seenCards.add(revealedCardName)
                                 }
 
-                                onCheatResult?.invoke(false, emptyList(), revealedCardName, cheatPressed)
+                                onCheatResult?.invoke(false, emptyList(), emptyList(), revealedCardName, cheatPressed)
                             }
                         }
                     }

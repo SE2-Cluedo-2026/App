@@ -65,7 +65,6 @@ class GameActivity : ComponentActivity() {
     private var lastSuggestion = Triple("", "", "")
     private var storedWinnerMsg = ""
 
-    private var bgMusic: MediaPlayer? = null
     private var waitingMusic: MediaPlayer? = null
 
     private var isLeaving = false
@@ -137,11 +136,6 @@ class GameActivity : ComponentActivity() {
 
         startDisconnectService()
 
-        bgMusic = MediaPlayer.create(this, R.raw.game_music)
-        bgMusic?.isLooping = true
-        bgMusic?.setVolume(0.1f, 0.1f)
-        bgMusic?.start()
-
         rootLayout = findViewById(R.id.rootGameLayout)
         boardImage = findViewById(R.id.imgBoard)
         gridOverlay = findViewById(R.id.gridOverlay)
@@ -193,7 +187,6 @@ class GameActivity : ComponentActivity() {
         if (intent.getBooleanExtra("waitingForPlayer", false)) {
             rootLayout.post {
                 showPauseOverlay("", 30)
-                bgMusic?.pause()
                 stopWaitingMusic()
                 waitingMusic = MediaPlayer.create(this, R.raw.waiting_for_rejoin)
                 waitingMusic?.isLooping = true
@@ -403,7 +396,6 @@ class GameActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        bgMusic?.pause()
         if (!isLeaving) {
             bgDisconnectHandler.postDelayed(bgDisconnectRunnable, 5000)
         }
@@ -412,9 +404,6 @@ class GameActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
-        if (waitingMusic == null) {
-            bgMusic?.start()
-        }
     }
 
     private fun onLeaveGame() {
@@ -422,9 +411,6 @@ class GameActivity : ComponentActivity() {
         isLeaving = true
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
         stopDisconnectService()
-        bgMusic?.stop()
-        bgMusic?.release()
-        bgMusic = null
         stopWaitingMusic()
         if (pauseOverlay != null) {
             MyStomp.instance.leaveLobby()
@@ -637,7 +623,7 @@ class GameActivity : ComponentActivity() {
                 }
             }
 
-            GameHandler.onCheatResult = { cheatDetected, cheaters, revealedCard, cheatPressed ->
+            GameHandler.onCheatResult = { cheatDetected, cheaters, matchingCards, revealedCard, cheatPressed ->
                 runOnUiThread {
                     dismissCheatOverlays()
 
@@ -645,15 +631,8 @@ class GameActivity : ComponentActivity() {
                         if (cheaters.any { it.first == ClientState.playerId }) {
                             ClientState.cheatUsed = true
                         }
-                        val allCards = cheaters.flatMap { it.second }
-
-                        val suggestionCards = listOf(lastSuggestion.first, lastSuggestion.second, lastSuggestion.third)
-                            .filter { it.isNotEmpty() }
-
-                        val penaltyCard = allCards.firstOrNull { it !in ClientState.seenCards }
-                            ?: allCards.firstOrNull()
-
-                        val cardsToShow = (suggestionCards + listOfNotNull(penaltyCard)).distinct()
+                        val penaltyCards = cheaters.flatMap { it.second }
+                        val cardsToShow = (matchingCards + penaltyCards).distinct()
                         ClientState.seenCards.addAll(cardsToShow)
 
                         val msg = "Cheat detected! Cards: ${cardsToShow.joinToString(", ")}"
@@ -690,9 +669,6 @@ class GameActivity : ComponentActivity() {
                         if (correct) {
                             storedWinnerMsg = if (accuserID == ClientState.playerId) getString(R.string.you_won)
                                               else getString(R.string.player_won, playerDisplayName(accuserID))
-                            bgMusic?.stop()
-                            bgMusic?.release()
-                            bgMusic = null
                             playSound(R.raw.win_sound)
                             android.os.Handler(mainLooper).postDelayed({
                                 GameUIHelper.showGameEndOverlay(this, rootLayout, storedWinnerMsg, isWin = true)
@@ -731,9 +707,6 @@ class GameActivity : ComponentActivity() {
             GameHandler.onGameFinished = { winner ->
                 runOnUiThread {
                     if (storedWinnerMsg.isEmpty()) {
-                        bgMusic?.stop()
-                        bgMusic?.release()
-                        bgMusic = null
                         playSound(R.raw.win_sound)
                         val msg = if (winner == ClientState.playerId) getString(R.string.you_won)
                                   else getString(R.string.player_won, playerDisplayName(winner))
@@ -751,7 +724,6 @@ class GameActivity : ComponentActivity() {
             GameHandler.onGamePaused = { disconnectedId, countdown ->
                 runOnUiThread {
                     showPauseOverlay(disconnectedId, countdown)
-                    bgMusic?.pause()
                     val leavePlayer = MediaPlayer.create(this, R.raw.ingame_leave_sound)
                     leavePlayer?.setOnCompletionListener {
                         it.release()
@@ -769,7 +741,6 @@ class GameActivity : ComponentActivity() {
                     if (!waitingForPlayer) {
                         dismissPauseOverlay()
                         stopWaitingMusic()
-                        bgMusic?.start()
                         Toast.makeText(
                             this,
                             "All Players rejoined!",
@@ -793,9 +764,6 @@ class GameActivity : ComponentActivity() {
                     if (reason == "Game finished — returning to lobby") return@runOnUiThread
                     if (storedWinnerMsg.isNotEmpty()) return@runOnUiThread
                     stopWaitingMusic()
-                    bgMusic?.stop()
-                    bgMusic?.release()
-                    bgMusic = null
                     playSound(R.raw.game_over_sound)
                     val displayReason = replacePlayerIdsWithNames(reason)
                     GameUIHelper.showGameEndOverlay(
@@ -831,9 +799,6 @@ class GameActivity : ComponentActivity() {
     override fun onDestroy() {
         bgDisconnectHandler.removeCallbacks(bgDisconnectRunnable)
         stopDisconnectService()
-        bgMusic?.stop()
-        bgMusic?.release()
-        bgMusic = null
         stopWaitingMusic()
         dismissPauseOverlay()
         dismissCheatOverlays()
@@ -891,28 +856,61 @@ class GameActivity : ComponentActivity() {
             dot.layoutParams = dlp
             gridOverlay.addView(dot)
         } else {
-            val roomOverlay = findViewById<ViewGroup>(R.id.roomOverlay) ?: return
+            val roomOverlayView = findViewById<ViewGroup>(R.id.roomOverlay) ?: return
 
             val playersInRoom = ClientState.playerPositions.filter { it.value == position }
-            val slotIndex = playersInRoom.keys.toList().indexOf(playerId).coerceIn(0, 3)
+            val sortedIds = playersInRoom.keys.sorted()
+            val count = sortedIds.size.coerceAtLeast(1)
+            val gap = dotSize / 4
+
+            val cols = if (count <= 2) count else 2
+            val rows = (count + 1) / 2
+            val groupW = cols * dotSize + (cols - 1) * gap
+            val groupH = rows * dotSize + (rows - 1) * gap
 
             val percent = BoardConfig.ROOM_CENTERS_PERCENT[position] ?: Pair(0.5f, 0.5f)
-            val centerX = (roomOverlay.width * percent.first).toInt()
-            val centerY = (roomOverlay.height * percent.second).toInt()
+            val centerX = (roomOverlayView.width * percent.first).toInt()
+            val centerY = (roomOverlayView.height * percent.second).toInt()
+            val startY = centerY - groupH / 2
 
-            val offsetX = (slotIndex % 2) * dotSize
-            val offsetY = (slotIndex / 2) * dotSize
+            // Rechte Räume expandieren nach rechts, linke Räume nach links
+            val rightRooms = setOf("BALLROOM", "LIBRARY", "BILLIARDROOM")
+            val leftRooms = setOf("KITCHEN", "LOUNGE", "STUDY")
+            fun slotX(index: Int): Int {
+                val col = index % cols
+                return when (position) {
+                    in rightRooms -> centerX + col * (dotSize + gap)
+                    in leftRooms  -> centerX - col * (dotSize + gap)
+                    else          -> centerX - groupW / 2 + col * (dotSize + gap)
+                }
+            }
+            fun slotY(index: Int): Int = startY + (index / cols) * (dotSize + gap)
 
+            // Neuen Dot platzieren
+            val mySlot = sortedIds.indexOf(playerId).coerceIn(0, 3)
             val dlp =
                 androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(dotSize, dotSize)
                     .apply {
                         startToStart = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
                         topToTop = androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
-                        leftMargin = centerX + offsetX - dotSize / 2
-                        topMargin = centerY + offsetY - dotSize / 2
+                        leftMargin = slotX(mySlot)
+                        topMargin = slotY(mySlot)
                     }
             dot.layoutParams = dlp
-            roomOverlay.addView(dot)
+            roomOverlayView.addView(dot)
+
+            // Alle anderen Spieler im gleichen Raum neu ausrichten
+            sortedIds.forEachIndexed { index, pid ->
+                if (pid != playerId) {
+                    val existingDot = playerDots[pid] ?: return@forEachIndexed
+                    val lp = existingDot.layoutParams
+                        as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                        ?: return@forEachIndexed
+                    lp.leftMargin = slotX(index)
+                    lp.topMargin = slotY(index)
+                    existingDot.layoutParams = lp
+                }
+            }
         }
 
         playerDots[playerId] = dot
@@ -976,6 +974,32 @@ class GameActivity : ComponentActivity() {
             myTurn && inRoom && (phase == "IN_ROOM" || phase == "WAITING_FOR_ROLL")
         )
         setButtonActive(btnLeave, true)
+        updateBoardBackground(myTurn, phase, inRoom, hasHiddenPassage)
+    }
+
+    private fun updateBoardBackground(
+        myTurn: Boolean,
+        phase: String,
+        inRoom: Boolean,
+        hasHiddenPassage: Boolean
+    ) {
+        val drawable = when {
+            // Nicht mein Zug → nur Leave-Button aktiv
+            !myTurn -> R.drawable.cboard_leave_only
+            // Eckraum, Zug beginnt → noch nicht bewegt (WAITING_FOR_ROLL)
+            inRoom && hasHiddenPassage && phase == "WAITING_FOR_ROLL" -> R.drawable.cboard
+            // Eckraum, bereits bewegt (Hidden Way oder in den Raum gezogen)
+            inRoom && hasHiddenPassage -> R.drawable.cboard_in_corner_room
+            // Normaler Raum, Zug beginnt (WAITING_FOR_ROLL)
+            inRoom && phase == "WAITING_FOR_ROLL" -> R.drawable.cboard_in_room_waiting
+            // Normaler Raum, bereits bewegt
+            inRoom -> R.drawable.cboard_in_room
+            // Auf dem Board, bereit zum Würfeln
+            phase == "WAITING_FOR_ROLL" -> R.drawable.cboard_roll_dice
+            // Auf dem Board, bewegt sich noch (nach Würfeln, vor Raum)
+            else -> R.drawable.cboard_leave_only
+        }
+        boardImage.setImageResource(drawable)
     }
 
     private fun setButtonActive(btn: Button, active: Boolean) {
